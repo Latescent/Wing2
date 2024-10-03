@@ -2,7 +2,6 @@ import cv2, sys, os, concurrent.futures, numpy as np
 from sklearn.ensemble import IsolationForest
 from skimage import filters
 from scipy.spatial import distance
-sys.path.append(os.path.abspath("/home/neutral/Desktop/CODE/imgprcs/Intersections"))
 from intersections import find_intersections_via_hit_or_miss
 
 input_dir = "/home/neutral/Documents/Wings/modified_wings_labeled"
@@ -11,6 +10,17 @@ noisy_dir = "/home/neutral/Documents/Wings/Mod-labeled-Noisy"
 
 os.makedirs(clean_dir, exist_ok=True)
 os.makedirs(noisy_dir, exist_ok=True)
+
+counter = 0
+
+def load_images():
+    global input_dir, clean_dir, noisy_dir
+
+    # Read every image
+    images = [os.path.join(input_dir, f) for f in os.listdir(input_dir) if f.endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
+    images.sort()
+
+    return images
 
 ################################################
 
@@ -79,11 +89,8 @@ def extract_features_parallel(image_name):
     print(f"Extracted features of {image_path}")
     return image_features, image_path
 
-def classify_images():
-    global input_dir, clean_dir, noisy_dir
-    # Read every image
-    images = [f for f in os.listdir(input_dir) if f.endswith(('.png', '.jpg', '.jpeg', '.bmp'))]
-    images.sort()
+def iso_forest():
+    images = load_images
 
     # Extract every feature of every image
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -99,6 +106,12 @@ def classify_images():
     iso_forest = IsolationForest(contamination=0.2, random_state=42, n_jobs=-1)
     predictions = iso_forest.fit_predict(features_array) # fit the Isolation Forest
     print("\nModel trained. Saving the images")
+    
+    return image_paths, predictions
+
+def classify_images():
+    image_paths, predictions = iso_forest()
+
     # Classify images in two separate folders
     for i, image_path in enumerate(image_paths):
         if predictions[i] == 1:
@@ -110,6 +123,41 @@ def classify_images():
 
     print("\nClassification complete. Images have been sorted into clean and noisy folders.")
 
-classify_images()
-
 # Rescale all images, odd intersections would significantly impact the average value of intersection. we can use the average value as an argument for iso-forest
+
+# images = load_images()
+
+# Function to prepare the coordination dataset
+def data_generator():
+    data = list()
+    images = load_images()
+
+    # Helper function to return a tuple that contains the image name and its intersections
+    def single_image_intersections(image_path):
+        global counter
+        # image_path = os.path.join(input_dir, image_path)
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        intersections = find_intersections_via_hit_or_miss(image)
+        counter += 1
+        print(f"Processed {os.path.basename(image_path)} | {counter}")
+        return (os.path.basename(image_path), intersections)
+    
+    def parallel_image_processing():
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            result = list(executor.map(single_image_intersections, images))
+
+        for tup in result:
+            print(tup, "\n")
+        
+        # for i in range(len(images)):
+        #     single_image_intersections(images[i])
+        #     print(i)
+    
+    parallel_image_processing()
+
+data_generator()
+
+
+
+
+#    [ (a , [ (b,c) , () ]), (              ) ]

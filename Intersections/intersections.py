@@ -128,11 +128,11 @@ def find_intersections_via_hit_or_miss(skeleton, show=False):
 # Example usage
 if __name__ == "__main__":
     # Load a skeletonized binary image (assuming it's already processed)
-    skeleton = cv2.imread('1.png', cv2.IMREAD_GRAYSCALE)
+    skeleton = cv2.imread('/home/neutral/Documents/Wings/modified_wings_labeled/AT-0001-031-003686-R.dw.png', cv2.IMREAD_GRAYSCALE)
 
     # Ensure it's binary (0 and 1)
     _, skeleton_binary = cv2.threshold(skeleton, 127, 1, cv2.THRESH_BINARY)
 
     # Find and display intersections
-    intersection_coords = find_intersections_via_hit_or_miss(skeleton_binary)
+    intersection_coords = find_intersections_via_hit_or_miss(skeleton_binary, show=True)
     print("Intersection Coordinates:", intersection_coords)
