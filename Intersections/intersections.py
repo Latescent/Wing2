@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-def remove_repetitives(data: tuple):
+def cleanup(data: tuple):
     def compare(lst1, lst2):
         if abs(lst1[0] - lst2[0]) < 4:
             if abs(lst1[1] - lst2[1]) < 4:
@@ -20,6 +20,10 @@ def remove_repetitives(data: tuple):
     
     while tuple() in data:
         data.remove(tuple())
+
+    for item in data:
+        if 0 in item:
+            data.remove(item)
 
     return data
 
@@ -110,7 +114,7 @@ def find_intersections_via_hit_or_miss(skeleton, show=False):
     for index in range(len(x_list)):
         coordination_list.append((x_list[index], y_list[index]))
 
-    coordination_list = remove_repetitives(coordination_list)
+    coordination_list = cleanup(coordination_list)
 
     # Display the intersection points on the skeleton image
     display_image = cv2.cvtColor(skeleton * 255, cv2.COLOR_GRAY2BGR)
