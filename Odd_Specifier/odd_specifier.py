@@ -24,7 +24,7 @@ def load_images():
 
 def progress_bar(len, counter, txt="Loading:"):
     percentage = int(counter * 100 / len)
-    print(f"{txt} |{'='*percentage}{' '*(100-percentage)}| {percentage}%", end='\r')
+    print(f"{txt} |{'='*percentage}{'-'*(100-percentage)}| {percentage}%", end='\r')
     if counter == len:
         sys.stdout.write(f"\r{txt} 100%\033[K\n")
 
@@ -106,7 +106,11 @@ def classify_images():
 
 # Rescale all images, odd intersections would significantly impact the average value of intersection. we can use the average value as an argument for iso-forest
 
-# images = load_images()
+################################################################################################
+
+
+
+################################################################################################
 
 # Function to prepare the coordination dataset
 def data_generator():
@@ -134,7 +138,7 @@ def data_generator():
             result = list(executor.map(single_image_intersections, images))
         return result
     
-    parallel_image_processing()
+    return parallel_image_processing()
 
 def min_distance(coord, other_object):
     return min([distance.euclidean(coord, other_coord) for other_coord in other_object])
@@ -148,7 +152,7 @@ def compare_objects(object1, object2, threshold=1.0):
     return matched_coords
 
 # Function to identify and exclude odd objects
-def exclude_odd_objects(objects_list, match_threshold=0.8, distance_threshold=1.0):
+def exclude_odd_objects(objects_list, match_threshold=0.8, distance_threshold=10):
     valid_objects = []
     for obj in objects_list:
         match_count = 0
@@ -163,6 +167,8 @@ def exclude_odd_objects(objects_list, match_threshold=0.8, distance_threshold=1.
             valid_objects.append(obj)
     return valid_objects
 
-data_generator()
+data = data_generator()
+data = [obj[1] for obj in data]
+print(exclude_odd_objects(data))
 
 #    [ (a , [ (b,c) , () ]), (              ) ]
