@@ -22,34 +22,15 @@ def load_images():
 
     return images
 
+def progress_bar(len, counter, txt="Loading:"):
+    percentage = int(counter * 100 / len)
+    print(f"{txt} |{'='*percentage}{' '*(100-percentage)}| {percentage}%", end='\r')
+    if counter == len:
+        sys.stdout.write(f"\r{txt} 100%\033[K\n")
+
 ################################################
 
-def min_distance(coord, other_object):
-    return min([distance.euclidean(coord, other_coord) for other_coord in other_object])
 
-# Function to find the closest matches of coordinates between two objects
-def compare_objects(object1, object2, threshold=1.0):
-    matched_coords = 0
-    for coord in object1:
-        if any(min_distance(coord, object2) < threshold for coord in object1):
-            matched_coords += 1
-    return matched_coords
-
-# Function to identify and exclude odd objects
-def exclude_odd_objects(objects_list, match_threshold=0.8, distance_threshold=1.0):
-    valid_objects = []
-    for obj in objects_list:
-        match_count = 0
-        for other_obj in objects_list:
-            if obj is not other_obj:
-                # Compare each object with all others
-                matched = compare_objects(obj, other_obj, distance_threshold)
-                if matched / len(obj) >= match_threshold:
-                    match_count += 1
-        # Exclude object if not enough matches found
-        if match_count >= len(objects_list) * match_threshold:
-            valid_objects.append(obj)
-    return valid_objects
 
 ################################################
 
@@ -132,6 +113,8 @@ def data_generator():
     data = list()
     images = load_images()
 
+    print("Extracting image intersections:")
+
     # Helper function to return a tuple that contains the image name and its intersections
     def single_image_intersections(image_path):
         global counter
@@ -139,25 +122,47 @@ def data_generator():
         image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
         intersections = find_intersections_via_hit_or_miss(image)
         counter += 1
-        print(f"Processed {os.path.basename(image_path)} | {counter}")
+
+        # Simple console animation to make the waiting time entertaining :D
+        progress_bar(len(images), counter)
+
         return (os.path.basename(image_path), intersections)
     
+    # Parallel intersection extraction
     def parallel_image_processing():
         with concurrent.futures.ThreadPoolExecutor() as executor:
             result = list(executor.map(single_image_intersections, images))
-
-        for tup in result:
-            print(tup, "\n")
-        
-        # for i in range(len(images)):
-        #     single_image_intersections(images[i])
-        #     print(i)
+        return result
     
     parallel_image_processing()
 
+def min_distance(coord, other_object):
+    return min([distance.euclidean(coord, other_coord) for other_coord in other_object])
+
+# Function to find the closest matches of coordinates between two objects
+def compare_objects(object1, object2, threshold=1.0):
+    matched_coords = 0
+    for coord in object1:
+        if min_distance(coord, object2) < threshold:
+            matched_coords += 1
+    return matched_coords
+
+# Function to identify and exclude odd objects
+def exclude_odd_objects(objects_list, match_threshold=0.8, distance_threshold=1.0):
+    valid_objects = []
+    for obj in objects_list:
+        match_count = 0
+        for other_obj in objects_list:
+            if obj is not other_obj:
+                # Compare each object with all others
+                matched = compare_objects(obj, other_obj, distance_threshold)
+                if matched / len(obj) >= match_threshold:
+                    match_count += 1
+        # Exclude object if not enough matches found
+        if match_count >= len(objects_list) * match_threshold:
+            valid_objects.append(obj)
+    return valid_objects
+
 data_generator()
-
-
-
 
 #    [ (a , [ (b,c) , () ]), (              ) ]
