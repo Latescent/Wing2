@@ -1,11 +1,15 @@
-import os
-import cv2
-import numpy as np
+import os, cv2, sys, numpy as np, csv
 import concurrent.futures
-import csv
 from filter import process_bee_wing, counter_lock, counter
 
 error_counter = 0
+image_counter = 0
+
+def progress_bar(len, counter, txt="Loading:"):
+    percentage = int(counter * 100 / len)
+    print(f"{txt} |{'='*percentage}{'-'*(100-percentage)}| {percentage}% | {counter}", end='\r')
+    if counter == len:
+        sys.stdout.write(f"\r{txt} 100%\033[K\n")
 
 # Function that marges two dictionaries
 def deep_merge(dict1, dict2):
@@ -161,6 +165,9 @@ def process_all_images(input_dir, csv_dir, output_dir):
             folder_name = os.path.basename(image_dir)[:2]
             # image_data = {folder_name : {noise_lvl : []}}
             arg = data[folder_name].get(noise_lvl) or data[folder_name][min(data[folder_name], key = lambda key: abs(key-noise_lvl))]
+            global image_counter
+            progress_bar(len(desired_images), image_counter, txt="Skeletonization progress: ")
+            image_counter += 1
             process_bee_wing(image_dir, arg, output_dir)
         except Exception as E:
 
@@ -190,7 +197,7 @@ def process_all_images(input_dir, csv_dir, output_dir):
 
                 F.write("\n----------------------------------------------------------------------------------------------------\n")
 
-    completed_tasks = 0
+        
     
     with concurrent.futures.ThreadPoolExecutor() as executor:
         list(executor.map(process_one_image, desired_images))
@@ -201,7 +208,7 @@ def process_all_images(input_dir, csv_dir, output_dir):
 
 
 def main():
-    input_dir = r'/home/neutral/Desktop/CODE/original_wings_labeled'
+    input_dir = r'/home/neutral/Documents/Wings/original_wings_labeled'
     csv_dir = r'/home/neutral/Desktop/CODE/imgprcs/filter 1.6/tweaks.csv'
     output_dir = r'/home/neutral/Desktop/CODE/modified_wings_labeled'
 
