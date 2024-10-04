@@ -208,9 +208,9 @@ def process_all_images(input_dir, csv_dir, output_dir):
 
 
 def main():
-    input_dir = r'/home/neutral/Documents/Wings/original_wings_labeled'
-    csv_dir = r'/home/neutral/Desktop/CODE/imgprcs/filter 1.6/tweaks.csv'
-    output_dir = r'/home/neutral/Desktop/CODE/modified_wings_labeled'
+    input_dir = r'/home/delta/Documents/original_wings_labeled'
+    csv_dir = r'/home/delta/Desktop/CODE/wing2/filter 1.6/tweaks.csv'
+    output_dir = r'/home/delta/Documents/modified_wings_labeled'
 
     process_all_images(input_dir, csv_dir, output_dir)
 
