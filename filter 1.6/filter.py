@@ -370,7 +370,7 @@ def process_bee_wing(image_path, args: list, out, *debug_mode):
 
     with counter_lock:
         counter += 1
-        print(f"Skeletonized {image_path} ---> {out} | {counter}")
+        #print(f"Skeletonized {image_path} ---> {out} | {counter}")
 
 
 def main():
