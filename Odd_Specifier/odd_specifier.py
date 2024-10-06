@@ -168,7 +168,20 @@ def exclude_odd_objects(objects_list, match_threshold=0.8, distance_threshold=10
     return valid_objects
 
 data = data_generator()
-data = [obj[1] for obj in data]
-print(exclude_odd_objects(data))
+# data = [obj[1] for obj in data]
+
+print(data[0])
+
+# for d in data:
+#     if len(d[1]):
+
+for name, entry in data:
+    if len(entry) == 0:
+        print(f"{name}, {entry}")
+
+
+#print(data)
+
+# print(exclude_odd_objects(data))
 
 #    [ (a , [ (b,c) , () ]), (              ) ]
