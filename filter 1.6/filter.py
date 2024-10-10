@@ -233,10 +233,18 @@ def crop_image(skeletonized, image_path, *debug_mode):
         else:
             return None
 
-    if "AT" or "RO" in image_path:
-        skeletonized = skeletonized[:, :-150]
-    if "HU" in image_path and "2019" not in image_path:
-        skeletonized = skeletonized[:, :-60]
+    if "AT" in image_path:
+        skeletonized = skeletonized[:, :-150] 
+    if "RO" in image_path:
+        skeletonized = skeletonized[:, :-150]  
+    if "HU" in image_path and "2019" not in  image_path:
+        skeletonized = skeletonized[:, :-170 ]
+    if "HU" in image_path and "2019" in image_path:
+        skeletonized = skeletonized[:, :-100]
+    if "MD" in image_path:
+        skeletonized = skeletonized[:, :-100]
+    if "PL" in image_path:
+        skeletonized = skeletonized[:, :-50]
         
     # Find every intersection
     intersection_coords = find_intersections_via_hit_or_miss(skeletonized)

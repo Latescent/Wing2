@@ -14,16 +14,16 @@ def main():
             # fix last line
             if os.path.exists(image_path):
                 _, noise_level = noise_level_detection(image_path)
-                with open("new_tweaks.csv", "a") as file2:
+                with open("/home/delta/Desktop/CODE/wing2/csv_fixer/new_tweaks.csv", "a") as file2:
                     writer = csv.writer(file2)
-                    writer.writerow([row[0],row[1],noise_level,row[3],row[4],row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12], row[13]])
+                    writer.writerow([row[1],noise_level,row[3],row[4],row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12], row[13]])
 
 
 
 def write_hedder():
-    with open("new_tweaks.csv", "w") as file:
+    with open("/home/delta/Desktop/CODE/wing2/csv_fixer/new_tweaks.csv", "w") as file:
         write_hedder = csv.writer(file)
-        write_hedder.writerow(["image_name", "folder_name" ,"noise_level" ,"nlm_h" ,"nlm_tws" ,"nlm_sws" ,"gb_kernel" ,"clahe_cl" ,"clahe_tgs"  ,"thresh_bs" ,"thresh_c" ,"morphx_kernel" ,"kernel_open" ,"kernel_close"])
+        write_hedder.writerow(["folder_name" ,"noise_level" ,"nlm_h" ,"nlm_tws" ,"nlm_sws" ,"gb_kernel" ,"clahe_cl" ,"clahe_tgs"  ,"thresh_bs" ,"thresh_c" ,"morphx_kernel" ,"kernel_open" ,"kernel_close"])
 
 
 def noise_level_detection(image_dir="/home/delta/Documents/original_wings_labeled/AT-0001-031-003679-R.dw.png"):
