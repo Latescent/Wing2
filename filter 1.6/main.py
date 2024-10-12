@@ -144,7 +144,7 @@ def noise_level_detection(image_dir):
         raise ValueError
     
     # Use adaptive thresholding for local binarization
-    _, thresh = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    thresh = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
     
     mean_value = np.mean(thresh)
 
@@ -208,15 +208,9 @@ def process_all_images(input_dir, csv_dir, output_dir):
 
 
 def main():
-<<<<<<< HEAD
     input_dir = r'/home/neutral/Documents/Wings/original_wings_labeled'
     csv_dir = r'/home/neutral/Desktop/CODE/imgprcs/filter 1.6/tweaks.csv'
-    output_dir = r'/home/neutral/Desktop/CODE/modified_wings_labeled'
-=======
-    input_dir = r'/home/delta/Documents/original_wings_labeled'
-    csv_dir = r'/home/delta/Desktop/CODE/wing2/filter 1.6/tweaks.csv'
-    output_dir = r'/home/delta/Desktop/CODE/wing2/filter 1.6/modified_wings_labeled'
->>>>>>> csv
+    output_dir = r'/home/neutral/Documents/Wings/modified_wings_labeled'
 
     process_all_images(input_dir, csv_dir, output_dir)
 

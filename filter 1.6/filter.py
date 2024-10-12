@@ -383,14 +383,14 @@ def process_bee_wing(image_path, args: list, out, *debug_mode):
 
 def main():
     # Example usage:
-    input_image_path = r'/home/neutral/Desktop/CODE/original_wings_labeled/RO-0022-SB-8-1987-004354.dw.png'
+    input_image_path = r'/home/neutral/Documents/Wings/original_wings_labeled/AT-0001-031-003680-L.dw.png'
     output_image_path = r'/home/neutral/Desktop/CODE'
 
     # nlm_h, nlm_tws, nlm_sws, gb_kernel, clahe_cl, clahe_tgs, thresh_bs, thresh_c, morphx_kernel, kernel_open, kernel_close
     arg_list = [12, 29, 42, (3, 3), 2.2, (20, 20), 43, 11.9, (2, 2), (2, 2), (5, 5)]
 
     # Process the bee wing image
-    skeleton_image = process_bee_wing(input_image_path, arg_list, output_image_path, "padded_image", "cropped_image")
+    skeleton_image = process_bee_wing(input_image_path, arg_list, output_image_path)
 
     # gray, denoised, blurred, enhanced_gray, thresh, closed_binary
     # opened_image, cleaned_image
