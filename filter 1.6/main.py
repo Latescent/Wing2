@@ -144,7 +144,7 @@ def noise_level_detection(image_dir):
         raise ValueError
     
     # Use adaptive thresholding for local binarization
-    _, thresh = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    thresh = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
     
     mean_value = np.mean(thresh)
 
