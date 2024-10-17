@@ -214,6 +214,7 @@ def main():
 
     process_all_images(input_dir, csv_dir, output_dir)
 
+
 if __name__ == "__main__":
     main()
 

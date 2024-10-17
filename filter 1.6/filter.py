@@ -181,8 +181,8 @@ def extract_skeleton(binary_image, *debug_mode):
     return skeleton
     
 
-def crop_image(skeletonized, image_path, *debug_mode):
 
+def crop_image(skeletonized, image_path, *debug_mode):
     # Helper function for cropping
     def find_the_leftmost_pixel(image):
         h, w = image.shape[:2]
@@ -193,19 +193,16 @@ def crop_image(skeletonized, image_path, *debug_mode):
                 if image[y, x] == 255:
                     # Returns the first white pixel
                     return x
-                
-
+                               
     def upper_border_finder(image):    
         if image is None:
             print("Error loading image.")
             return None
-
+        
         h, w = image.shape
         # Adjust width for margin on the right
         w -= 20
-
-        white_pixels = []
-        
+        white_pixels = []    
         # Iterate through every pixels
         for height in range(h):
             white_pixel_count = 0
@@ -232,22 +229,39 @@ def crop_image(skeletonized, image_path, *debug_mode):
             return borders[1][0]
         else:
             return None
-
-    if "AT" or "RO" in image_path:
-        skeletonized = skeletonized[:, :-150]
-    if "HU" in image_path and "2019" not in image_path:
-        skeletonized = skeletonized[:, :-60]
-        
+    h, w = skeletonized.shape
+    if "AT" in image_path:
+        skeletonized = skeletonized[:, :-150] 
+    if "RO" in image_path:
+        skeletonized = skeletonized[:, :-150]  
+    if "HU" in image_path and "2019" not in  image_path:
+        skeletonized = skeletonized[:, :-170 ]
+    if "HU" in image_path and "2019" in image_path:
+        skeletonized = skeletonized[:, :-100]
+    if "MD" in image_path:
+        skeletonized = skeletonized[:, :-100]
+    if "PL" in image_path and (1000 < w):
+        skeletonized = skeletonized[:, :-400]
+    elif "PL" in image_path and (800 < w < 1000):
+        skeletonized = skeletonized[:, :-200]
+    elif "PL" in image_path and (600 < w < 800):
+        skeletonized = skeletonized[:, :-10]
     # Find every intersection
     intersection_coords = find_intersections_via_hit_or_miss(skeletonized)
     
     h, w = skeletonized.shape[:2]
-
-    average = (w*25) / 100
+    average = 0
+    if "PL" in image_path and (1000 < w):
+        average = (w*35) / 100
+    if "PL" in image_path and (800 < w < 1000):
+        average = (w*25) / 100
+    if "PL" in image_path and (600 < w , 800):
+        average = (w*15) / 100
     left_intersection = w
     upper_intersection = h
     right_intersection = 0
     lower_intersection = 0
+
 
     # Find every border
     for coord in intersection_coords:
@@ -258,13 +272,12 @@ def crop_image(skeletonized, image_path, *debug_mode):
             upper_intersection = coord[0]
 
         if coord[1] > right_intersection:
-            if coord[1] < w-20:
+            if coord[1] < w+20:
                 right_intersection = coord[1]
 
         if coord[0] > lower_intersection:
             if coord[0] < w-20:
                 lower_intersection = coord[0]
-
 
     upper_border = upper_border_finder(skeletonized)
 
@@ -273,10 +286,12 @@ def crop_image(skeletonized, image_path, *debug_mode):
     
     if left_intersection > average:
         left_intersection = find_the_leftmost_pixel(skeletonized)
-          
+
+
+
     x1 = left_intersection-15
     x2 = right_intersection+15
-    y1 = upper_intersection-15
+    y1 = upper_intersection-25
     y2 = lower_intersection+15
 
     # Check if the border coordinates are out of bounds
@@ -375,8 +390,8 @@ def process_bee_wing(image_path, args: list, out, *debug_mode):
 
 def main():
     # Example usage:
-    input_image_path = r'/home/neutral/Desktop/CODE/original_wings_labeled/RO-0022-SB-8-1987-004354.dw.png'
-    output_image_path = r'/home/neutral/Desktop/CODE'
+    input_image_path = r'/home/delta/Documents/original_wings_labeled/SI-0020-386-100654-L.dw.png'
+    output_image_path = r'/home/delta/Documents'
 
     # nlm_h, nlm_tws, nlm_sws, gb_kernel, clahe_cl, clahe_tgs, thresh_bs, thresh_c, morphx_kernel, kernel_open, kernel_close
     arg_list = [12, 29, 42, (3, 3), 2.2, (20, 20), 43, 11.9, (2, 2), (2, 2), (5, 5)]
