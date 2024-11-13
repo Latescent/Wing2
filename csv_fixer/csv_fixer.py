@@ -43,8 +43,3 @@ def noise_level_detection(image_dir="/home/delta/Documents/original_wings_labele
 
 if __name__ == "__main__":
     main()
-=======
-#test
-#tes
-#test3
->>>>>>> 0adcb5cd4d7a9dfcfddc90de618642b8d05c98ba
