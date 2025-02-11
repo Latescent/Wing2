@@ -31,7 +31,7 @@ def load_images_as_vectors(image_folder, image_size=(512, 256)):
 
 # Function to create directories for each cluster and move images into their respective folders
 def save_images_by_cluster(image_folder, image_names, clusters):
-    output_dir = "output_clusters"
+    output_dir = "/home/delta/Documents/new_database/out_put"
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     
@@ -45,7 +45,7 @@ def save_images_by_cluster(image_folder, image_names, clusters):
         shutil.copy(src_path, dest_path)
 
 # Set the image folder path
-image_folder = "/home/neutral/Desktop/CODE/Mod-labeled"  # Replace with your image folder path
+image_folder = "/home/delta/Documents/new_database/Mod-labeled-Clean"  # Replace with your image folder path
 
 # Load and preprocess image data
 image_vectors, image_names = load_images_as_vectors(image_folder)

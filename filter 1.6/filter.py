@@ -272,7 +272,7 @@ def crop_image(skeletonized, image_path, *debug_mode):
             upper_intersection = coord[0]
 
         if coord[1] > right_intersection:
-            if coord[1] < w+20:
+            if coord[1] < w-2:
                 right_intersection = coord[1]
 
         if coord[0] > lower_intersection:
@@ -390,7 +390,7 @@ def process_bee_wing(image_path, args: list, out, *debug_mode):
 
 def main():
     # Example usage:
-    input_image_path = r'/home/delta/Documents/original_wings_labeled/SI-0020-386-100654-L.dw.png'
+    input_image_path = r'/home/delta/Documents/original_wings_labeled/PL-0001-000421-L.dw.png'
     output_image_path = r'/home/delta/Documents'
 
     # nlm_h, nlm_tws, nlm_sws, gb_kernel, clahe_cl, clahe_tgs, thresh_bs, thresh_c, morphx_kernel, kernel_open, kernel_close
