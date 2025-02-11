@@ -1,214 +1,222 @@
-import cv2
-import numpy as np
+import os, cv2, sys, numpy as np, csv
+import concurrent.futures
+from filter import process_bee_wing, counter_lock, counter
 
-def find_intersections_via_hit_or_miss(skeleton, show=False):
-    """
-    Detect intersection points in a skeletonized binary image using morphological hit-or-miss operation.
+error_counter = 0
+image_counter = 0
 
-    Parameters:
-    skeleton (np.array): Binary image of the skeletonized structure.
+def progress_bar(len, counter, txt="Loading:"):
+    percentage = int(counter * 100 / len)
+    print(f"{txt} |{'='*percentage}{'-'*(100-percentage)}| {percentage}% | {counter}", end='\r')
+    if counter == len:
+        sys.stdout.write(f"\r{txt} 100%\033[K\n")
 
-    Returns:
-    intersections (np.array): Binary image showing intersection points.
-    intersection_coords (list): List of (x, y) coordinates of intersection points.
-    """
-    # Define a list of 3x3 masks that represent possible intersection patterns
-    kernel_1 = np.array([[0, 1, 0],
-                         [1, 1, 1],
-                         [0, 1, 0]], dtype=np.uint8)
+# Function that marges two dictionaries
+def deep_merge(dict1, dict2):
+    # Merges dict2 into dict1 recursively
+    for key, value in dict2.items():
+        if key in dict1:
+            if isinstance(dict1[key], dict) and isinstance(value, dict):
+                # Recursively merge dictionaries
+                dict1[key] = deep_merge(dict1[key], value)
+            else:
+                # Overwrite with dict2's value
+                dict1[key] = value
+        else:
+            # Add new key-value pair
+            dict1[key] = value
+    return dict1
+
+
+# Load every image in the directory
+def load_images(image_dir, output_dir):
+    try:
+        loaded_image_list = [os.path.join(image_dir, img) for img in os.listdir(image_dir) if img.endswith(('.png', '.jpg', '.jpeg'))]
+        loaded_image_list.sort()
+
+        processed_image_list = [os.path.join(output_dir, img) for img in os.listdir(output_dir) if img.endswith(('.png', '.jpg', '.jpeg'))]
+        processed_image_list.sort()
+
+        print("Loading images: Completed")
+
+    except Exception as E:
+        print(f"Error in load_images: {E}")
+        exit(1)
+
+    return loaded_image_list, processed_image_list
+
+
+# Load the csv data in a dictionary (Rule: the dict key should be in the same format as process_bee_wing arg_list format)
+def load_csv(dir):
+    # Helper function 1: converts strings in the csv to the correct format
+    def format_str(S: str):
+        # Check to see if it should be a tuple
+        S.strip()
+        if '(' and ')' in S:
+            # Remove the unnecessary punctuation
+            S = S.replace('(', '')
+            S = S.replace(')', '')
+            S = S.replace(' ', '')
+
+            # Make a temprary list to represent a mutable tuple, and an anchor that marks the comma between the values of the tuple
+            temp = list()
+            anchor = S.find(',')
+
+            # Add the strings to temp
+            temp.append(S[:anchor])
+            temp.append(S[anchor + 1:])
+
+            # Try to convert the strings to floating values if possible
+            for index in range(len(temp)):
+                try:
+                    if temp[index].isdigit():
+                        temp[index] = int(temp[index])
+                    else:
+                        temp[index] = float(temp[index])
+                except Exception:
+                    pass
+
+            # Convert temp into a tuple and return it
+            return tuple(temp)
+        
+        elif S.isdigit():
+            return int(S)
+
+        elif S.replace('.', '').isdigit():
+            return float(S)
+
+        else:
+            return S
     
-    kernel_2 = np.array([[1, 0, 1],
-                         [0, 1, 0],
-                         [1, 0, 1]], dtype=np.uint8)
-    
-    kernel_3 = np.array([[1, 1, 1],
-                         [0, 1, 0],
-                         [0, 1, 0]], dtype=np.uint8)
-    
-    kernel_4 = np.array([[0, 0, 1],
-                         [1, 1, 1],
-                         [0, 1, 0]], dtype=np.uint8)
-    
-    kernel_5 = np.array([[1, 0, 0],
-                         [1, 1, 1],
-                         [0, 1, 0]], dtype=np.uint8)
-    
-    kernel_6 = np.array([[1, 0, 1],
-                         [0, 1, 0],
-                         [0, 1, 0]], dtype=np.uint8)
-    
-    kernel_7 = np.array([[0, 1, 0],
-                         [1, 1, 0],
-                         [0, 0, 1]], dtype=np.uint8)
-    
-    kernel_8 = np.array([[1, 1, 1],
-                         [0, 1, 0],
-                         [0, 0, 1]], dtype=np.uint8)
-    
-    kernel_9 = np.array([[1, 1, 1],
-                         [0, 1, 0],
-                         [1, 0, 0]], dtype=np.uint8)
-    
-    kernel_10 = np.array([[1, 0, 1],
-                          [0, 1, 0],
-                          [1, 0, 0]], dtype=np.uint8)
+    # Helper function 2: reads every line of csv file and returns the required list and data
+    # { Folder_name : { Noise_level : [arg_list] } }
+    # ['EX', '46.38573857385739', '15', '19', '99', '(3, 3)', '1', '(3, 3)', '25', '17', '(2, 2)', '(2, 2)', '(5, 5)']
+    def row_reader(row: list):
+        # Create a base dict
+        data = dict()
 
-    masks = [
-        kernel_1,
-        kernel_2,
-        kernel_3, np.rot90(kernel_3, k=1), np.rot90(kernel_3, k=2), np.rot90(kernel_3, k=3),
-        kernel_4, np.rot90(kernel_4, k=1), np.rot90(kernel_4, k=2), np.rot90(kernel_4, k=3),
-        kernel_5, np.rot90(kernel_5, k=1), np.rot90(kernel_5, k=2), np.rot90(kernel_5, k=3),
-        kernel_6, np.rot90(kernel_6, k=1), np.rot90(kernel_6, k=2), np.rot90(kernel_6, k=3),
-        kernel_7, np.rot90(kernel_7, k=1), np.rot90(kernel_7, k=2), np.rot90(kernel_7, k=3),
-        kernel_8, np.rot90(kernel_8, k=1), np.rot90(kernel_8, k=2), np.rot90(kernel_8, k=3),
-        kernel_9, np.rot90(kernel_9, k=1), np.rot90(kernel_9, k=2), np.rot90(kernel_9, k=3),
-        kernel_10, np.rot90(kernel_10, k=1), np.rot90(kernel_10, k=2), np.rot90(kernel_10, k=3)
-    ]
-    
-    intersections = np.zeros_like(skeleton, dtype=np.uint8)
+        # Create and store: folder name, noise level
+        folder_name = format_str(row[0])
+        noise_lvl = format_str(row[1])
 
-    # Apply hit-or-miss transform using each mask
-    for mask in masks:
-        hit_or_miss = cv2.morphologyEx(skeleton, cv2.MORPH_HITMISS, mask)
-        intersections = np.logical_or(intersections, hit_or_miss).astype(np.uint8)
-    
-    # Get the coordinates of the intersection points in a standard format(list of tuples)
-    x_list = list(np.where(intersections > 0)[0])
-    y_list = list(np.where(intersections > 0)[1])
+        # Add the structure
+        data[folder_name] = dict()
 
-    for index in range(len(x_list)):
-        x_list[index] = int(x_list[index])
+        # Create the value list
+        value_list = list()
+        for index in range(2, len(row)):
+            value_list.append(format_str(row[index]))
 
-    for index in range(len(y_list)):
-        y_list[index] = int(y_list[index])
+        # Add the value list to the data
+        data[folder_name][noise_lvl] = value_list
 
-    coordination_list = list()
+        # Return the data
+        return data
 
-    for index in range(len(x_list)):
-        coordination_list.append((x_list[index], y_list[index]))
+    # Utilize the helper functions
+    try:
+        with open(dir, 'r') as csv_file:
+            # Read the csv file
+            csv_reader = csv.reader(csv_file)
 
-    # Display the intersection points on the skeleton image
-    display_image = cv2.cvtColor(skeleton * 255, cv2.COLOR_GRAY2BGR)
-    for coord in coordination_list:
-        cv2.circle(display_image, tuple(coord[::-1]), radius=3, color=(0, 0, 255), thickness=-1)
+            # Create the data dict\
+            data = dict()
 
-    # Show the result
-    if show:
-        cv2.imshow('Intersections', display_image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+            # Iterate the csv file
+            for row in csv_reader:
+                deep_merge(data, row_reader(row))
 
-    return coordination_list
+            print("Loading CSV: Completed")
 
-#################################################################
+            # Return the data
+            return data
 
-def find_the_leftmost_pixel(image):
-    h, w = image.shape[:2]
-    pixels = []
-    for x in range(w):
-        for y in reversed(range(h)):
-            if image[y, x] == 255:
-                return x
+    except Exception as E:
+        print(f"Error in load_csv: {E}")
+        exit(1)
 
 
-def crop_image_with_opencv(image_path):
-    # Load the image in grayscale mode
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+# Determine the noise level of a single image
+def noise_level_detection(image_dir):
+    image = cv2.imread(image_dir, cv2.IMREAD_GRAYSCALE)
     
     if image is None:
-        print("Error loading image.")
-        return None, None
-
-    h, w = image.shape
-    w -= 20  # Adjust width for margin on the right
-
-    w_pixels = []
+        raise ValueError
     
-    # Iterate through the image pixels
-    for x in range(h):
-        number_white = 0
-        for y in range(20, w):
-            pixel = image[x, y]
-            if pixel == 255:  # White pixel in grayscale image
-                number_white += 1
-        w_pixels.append((x, number_white))
+    # Use adaptive thresholding for local binarization
+    _, thresh = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     
-    crop = []
-    max_up = w_pixels[0]
-    
-    for i in range(1, len(w_pixels)):
-        pix2 = w_pixels[i]
-        pix1 = w_pixels[i-1]
+    mean_value = np.mean(thresh)
 
-        if pix2[1] > 1 and pix1[1] == 0 and pix2[1] - pix1[1] > 5:
-            crop.append(pix2)
+    return (os.path.basename(image_dir), float(mean_value))
 
-    if len(crop) == 2:
-        return crop[1][0], max_up[0]
-    else:
-        return None, max_up[0]
-    
 
-def crop_image(skeleton, image_path):
+# Process all the images
+def process_all_images(input_dir, csv_dir, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    images_list, processed_list = load_images(input_dir, output_dir)
+    desired_images = [image for image in images_list if image not in processed_list]
+    data = load_csv(csv_dir)
 
-    if "AT" or "RO" in image_path:
-        skeleton = skeleton[:, :-150]
-    if "HU" in image_path and "2019" not in image_path:
-        skeleton = skeleton[:, :-60]
+    # Process one image(Parallel processing compatible)
+    def process_one_image(image_dir):
+        try:
+            noise_lvl = noise_level_detection(image_dir)[1]
+            folder_name = os.path.basename(image_dir)[:2]
+            # image_data = {folder_name : {noise_lvl : []}}
+            arg = data[folder_name].get(noise_lvl) or data[folder_name][min(data[folder_name], key = lambda key: abs(key-noise_lvl))]
+            global image_counter
+            global error_counter
+            progress_bar(len(desired_images), image_counter + error_counter, txt="Skeletonization progress: ")
+            image_counter += 1
+            process_bee_wing(image_dir, arg, output_dir)
+        except Exception as E:
+
+            print(f"Error in processing {image_dir}")
+            
+            global error_counter
+
+            error_counter += 1
+
+            # Log every failed action in log.txt
+            with open("log.txt", 'a') as F:
+                F.write(f"Error loading image: {os.path.basename(image_dir)}\n\t{E}\n")
+                try:
+                    F.write(f"\tNoise level: {noise_lvl}\n")
+                except Exception as E1:
+                    F.write(f"\tLogging \"noise_lvl\" failed: {E1}\n")
+
+                try:
+                    F.write(f"\tFolder name: {folder_name}\n")
+                except Exception as E2:
+                    F.write(f"\tLogging \"folder_name\" failed: {E2}\n")
+
+                try:
+                    F.write(f"\tArguments: {arg}\n")
+                except Exception as E3:
+                    F.write(f"\tLogging \"Arguments\" failed: {E3}\n")
+
+                F.write("\n----------------------------------------------------------------------------------------------------\n")
+
         
-    _, skeleton_binary = cv2.threshold(skeleton, 127, 1, cv2.THRESH_BINARY)
-    intersection_coords = find_intersections_via_hit_or_miss(skeleton_binary)
-    print(len(intersection_coords))
-    h, w = skeleton.shape[:2]
-
-    avarage = (w*25) / 100
-    left = w
-    up = h
-    for coord in intersection_coords:
-        if  coord[1] < left:
-            left = coord[1]
-        if  coord[0] < up:
-            up = coord[0]       
-
-    right = 0
-    down = 0
-    for coord in intersection_coords:
-        if coord[1] > right:
-            if coord[1] < w-20:
-                right = coord[1]
-        if coord[0] > down:
-            if coord[0] < w-20:
-                down = coord[0]
-
-    up_test = crop_image_with_opencv(image_path)
-    if  up_test[0] != None:
-        up = up_test[0]
-        print(up_test)
-    # else:
-    #     print(up_test[1]) 
-    #     up =  up_test[1]
-    print(up)
-    if left > avarage:
-        left = find_the_leftmost_pixel(skeleton)
-
-    point1 = (up-15, left-5)  
-    point2 = (down+10, right+10)          
-    x1 = point1[1]
-    x2 = point2[1]
-    y1 = point1[0]
-    y2 = point2[0]
     
-    if x1 > x2:
-        x1, x2 = x2, x1
-    if y1 > y2:
-        y1, y2 = y2, y1
+    # with concurrent.futures.ThreadPoolExecutor() as executor:
+    #     list(executor.map(process_one_image, desired_images))
 
-    cropped_image = skeleton[y1:y2, x1:x2]
-    cv2.imshow('crop', cropped_image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    return cropped_image
+    global error_counter
+    
+    # print(f"All images processed with {error_counter} errors")
+    process_one_image(r"/home/neutral/Documents/Wings/original_wings_labeled/AT-0001-031-003680-L.dw.png")
 
-img = cv2.imread("1.png", cv2.IMREAD_GRAYSCALE)
-crop_image(img, "1.png")
+
+def main():
+    input_dir = r'/home/neutral/Documents/Wings/original_wings_labeled'
+    csv_dir = r'/home/neutral/Desktop/CODE/imgprcs/filter 1.6/tweaks.csv'
+    output_dir = r'/home/neutral/Documents/Wings/modified_wings_labeled'
+
+    process_all_images(input_dir, csv_dir, output_dir)
+
+if __name__ == "__main__":
+    main()
+
+# [(PL, 4), (HR, 8), (HU, 1), (MD, 1), (AT, 3), (RO, 2)]

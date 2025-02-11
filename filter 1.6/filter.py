@@ -229,7 +229,11 @@ def crop_image(skeletonized, image_path, *debug_mode):
             return borders[1][0]
         else:
             return None
+<<<<<<< HEAD
     h, w = skeletonized.shape
+=======
+
+>>>>>>> refs/remotes/wing2/master
     if "AT" in image_path:
         skeletonized = skeletonized[:, :-150] 
     if "RO" in image_path:
@@ -240,12 +244,18 @@ def crop_image(skeletonized, image_path, *debug_mode):
         skeletonized = skeletonized[:, :-100]
     if "MD" in image_path:
         skeletonized = skeletonized[:, :-100]
+<<<<<<< HEAD
     if "PL" in image_path and (1000 < w):
         skeletonized = skeletonized[:, :-400]
     elif "PL" in image_path and (800 < w < 1000):
         skeletonized = skeletonized[:, :-200]
     elif "PL" in image_path and (600 < w < 800):
         skeletonized = skeletonized[:, :-10]
+=======
+    if "PL" in image_path:
+        skeletonized = skeletonized[:, :-50]
+        
+>>>>>>> refs/remotes/wing2/master
     # Find every intersection
     intersection_coords = find_intersections_via_hit_or_miss(skeletonized)
     
@@ -390,14 +400,19 @@ def process_bee_wing(image_path, args: list, out, *debug_mode):
 
 def main():
     # Example usage:
+<<<<<<< HEAD
     input_image_path = r'/home/delta/Documents/original_wings_labeled/PL-0001-000421-L.dw.png'
     output_image_path = r'/home/delta/Documents'
+=======
+    input_image_path = r'/home/neutral/Documents/Wings/original_wings_labeled/AT-0001-031-003680-L.dw.png'
+    output_image_path = r'/home/neutral/Desktop/CODE'
+>>>>>>> refs/remotes/wing2/master
 
     # nlm_h, nlm_tws, nlm_sws, gb_kernel, clahe_cl, clahe_tgs, thresh_bs, thresh_c, morphx_kernel, kernel_open, kernel_close
     arg_list = [12, 29, 42, (3, 3), 2.2, (20, 20), 43, 11.9, (2, 2), (2, 2), (5, 5)]
 
     # Process the bee wing image
-    skeleton_image = process_bee_wing(input_image_path, arg_list, output_image_path, "padded_image", "cropped_image")
+    skeleton_image = process_bee_wing(input_image_path, arg_list, output_image_path)
 
     # gray, denoised, blurred, enhanced_gray, thresh, closed_binary
     # opened_image, cleaned_image

@@ -71,7 +71,7 @@ def extract_features_parallel(image_name):
     return image_features, image_path
 
 def iso_forest():
-    images = load_images
+    images = load_images()
 
     # Extract every feature of every image
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -151,10 +151,13 @@ def compare_objects(object1, object2, threshold=1.0):
             matched_coords += 1
     return matched_coords
 
+total_completed = 0
+
 # Function to identify and exclude odd objects
 def exclude_odd_objects(objects_list, match_threshold=0.8, distance_threshold=10):
-    valid_objects = []
-    for obj in objects_list:
+    def compare(obj):
+        global total_completed
+        progress_bar
         match_count = 0
         for other_obj in objects_list:
             if obj is not other_obj:
@@ -164,11 +167,13 @@ def exclude_odd_objects(objects_list, match_threshold=0.8, distance_threshold=10
                     match_count += 1
         # Exclude object if not enough matches found
         if match_count >= len(objects_list) * match_threshold:
-            valid_objects.append(obj)
+            return obj
+
+    valid_objects = []
+    for obj in objects_list:
+        valid_objects.append(compare(obj))
     return valid_objects
 
-data = data_generator()
-data = [obj[1] for obj in data]
-print(exclude_odd_objects(data))
+#################################
 
-#    [ (a , [ (b,c) , () ]), (              ) ]
+classify_images()
