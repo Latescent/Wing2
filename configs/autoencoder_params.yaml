@@ -1,0 +1,8 @@
+input_shape: [128, 128, 1]
+encoder_filters: [32, 64]
+decoder_filters: [64, 32]
+latent_dim: 32
+epochs: 50
+batch_size: 32
+validation_split: 0.2
+anomaly_threshold: 0.035
