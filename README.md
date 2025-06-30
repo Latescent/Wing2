@@ -1,6 +1,5 @@
 # Bee Wing Morphology Analysis Pipeline
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.7244070.svg)](https://zenodo.org/records/7244070)
 
 This repository contains the complete pipeline for analyzing bee wing vein structures, including:
 - Image preprocessing and skeletonization
