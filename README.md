@@ -20,7 +20,5 @@ This repository contains the complete pipeline for analyzing bee wing vein struc
 
 ## Dataset Information
 - **26,000 raw wing images** (Zenodo: 10.5281/zenodo.7244070)
-- **1,000 annotated samples** (`data/annotated/`)
-- **Parameter configurations** (`configs/tweaks.csv`)
 
 [Full Documentation](docs/reproduction-guide.md) | [Methodology](docs/methodology.md)
