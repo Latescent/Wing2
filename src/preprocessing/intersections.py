@@ -136,6 +136,13 @@ if __name__ == "__main__":
     # This assumes the skeleton is white (255) on a black (0) background.
     _, skeleton_binary = cv2.threshold(skeleton_image, 127, 1, cv2.THRESH_BINARY)
 
+    # Delete the pixel wide border of the image
+    h, w = skeleton_binary.shape
+    skeleton_binary[0, :] = 0      # Top edge
+    skeleton_binary[h-1, :] = 0    # Bottom edge
+    skeleton_binary[:, 0] = 0      # Left edge
+    skeleton_binary[:, w-1] = 0    # Right edge
+
     # Find and optionally display intersections
     intersection_coords = find_intersections_via_hit_or_miss(skeleton_binary, show=args.show)
     
