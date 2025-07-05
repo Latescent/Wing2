@@ -1,4 +1,3 @@
-# baseline_lda.py
 """
 Traditional Morphometric Analysis for Honey Bee Subspecies Identification
 Implements Linear Discriminant Analysis (LDA) on manual wing vein measurements
