@@ -1,223 +1,301 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import DataLoader, Dataset
 import numpy as np
-import yaml
-import random
-from torch.utils.data import DataLoader, TensorDataset, random_split
-from tqdm import tqdm
+import cv2
 import os
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+import json
+from pathlib import Path
+import logging
+import yaml
 
-# Load configuration from YAML
-with open('configs/autoencoder_params.yaml') as f:
-    config = yaml.safe_load(f)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Set random seeds for reproducibility
-def set_seed(seed=42):
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-
-set_seed()
+class WingImageDataset(Dataset):
+    """
+    Dataset loader for wing image data preprocessing and normalization.
+    """
+    
+    def __init__(self, image_paths, transform=None):
+        self.image_paths = image_paths
+        self.transform = transform
+        
+    def __len__(self):
+        return len(self.image_paths)
+    
+    def __getitem__(self, idx):
+        image_path = self.image_paths[idx]
+        
+        # Load grayscale image
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        if image is None:
+            raise ValueError(f"Could not load image: {image_path}")
+            
+        # Normalize pixel intensities to [0, 1] range
+        image = image.astype(np.float32) / 255.0
+        
+        # Add channel dimension for PyTorch compatibility
+        image = np.expand_dims(image, axis=0)
+        
+        if self.transform:
+            image = self.transform(image)
+            
+        return torch.from_numpy(image), image_path
 
 class ConvolutionalAutoencoder(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.config = config
-        self.encoder, self.decoder = self._build_model()
-        self.autoencoder = nn.Sequential(self.encoder, self.decoder)
+    """
+    Convolutional autoencoder architecture for wing image reconstruction.
+    
+    Encoder: Five convolutional layers with ascending filter dimensions
+    Decoder: Five transposed convolutional layers with descending filter dimensions
+    Latent space: 128-dimensional compressed representation
+    """
+    
+    def __init__(self, input_channels=1, latent_dim=128):
+        super(ConvolutionalAutoencoder, self).__init__()
         
-    def _build_encoder(self):
-        layers = []
-        in_channels = self.config['input_shape'][2]  # Channel last format
-        
-        # Dynamically build encoder based on config
-        for i, filters in enumerate(self.config['encoder_filters']):
-            layers.extend([
-                nn.Conv2d(in_channels, filters, kernel_size=3, padding=1),
-                nn.ReLU(),
-                nn.MaxPool2d(2, stride=2)
-            ])
-            in_channels = filters
+        # Encoder layers with batch normalization and ReLU activation
+        self.encoder = nn.Sequential(
+            nn.Conv2d(input_channels, 32, kernel_size=5, stride=2, padding=2),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
             
-        # Latent space projection
-        layers.append(nn.Flatten())
-        layers.append(nn.Linear(
-            self._calculate_conv_output_size(),
-            self.config['latent_dim']
-        ))
-        
-        return nn.Sequential(*layers)
-    
-    def _calculate_conv_output_size(self):
-        # Calculate flattened size after convolutions
-        with torch.no_grad():
-            dummy = torch.zeros(1, *self.config['input_shape'])
-            dummy = dummy.permute(0, 3, 1, 2)  # to (B, C, H, W)
-            for layer in self.encoder[:-2]:  # Exclude flatten and linear
-                dummy = layer(dummy)
-            return dummy.view(1, -1).shape[1]
-    
-    def _build_decoder(self):
-        # Calculate initial decoder input size
-        conv_output_size = self._calculate_conv_output_size()
-        spatial_dim = int(np.sqrt(conv_output_size // self.config['encoder_filters'][-1]))
-        
-        layers = [
-            nn.Linear(self.config['latent_dim'], conv_output_size),
-            nn.Unflatten(1, (self.config['encoder_filters'][-1], spatial_dim, spatial_dim))
-        ]
-        
-        in_channels = self.config['encoder_filters'][-1]
-        
-        # Dynamically build decoder based on config
-        for i, filters in enumerate(self.config['decoder_filters']):
-            layers.extend([
-                nn.ConvTranspose2d(in_channels, filters, kernel_size=3, stride=2, padding=1, output_padding=1),
-                nn.ReLU()
-            ])
-            in_channels = filters
+            nn.Conv2d(32, 64, kernel_size=5, stride=2, padding=2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
             
-        # Final output layer
-        layers.extend([
-            nn.Conv2d(in_channels, self.config['input_shape'][2], kernel_size=3, padding=1),
-            nn.Sigmoid()
-        ])
-        
-        return nn.Sequential(*layers)
-    
-    def forward(self, x):
-        return self.autoencoder(x)
-    
-    def train_model(self, train_data):
-        # Prepare data
-        tensor_data = torch.tensor(train_data, dtype=torch.float32)
-        tensor_data = tensor_data.permute(0, 3, 1, 2)  # to (B, C, H, W)
-        dataset = TensorDataset(tensor_data, tensor_data)
-        
-        # Train-validation split
-        val_size = int(len(dataset) * self.config['validation_split'])
-        train_size = len(dataset) - val_size
-        train_set, val_set = random_split(dataset, [train_size, val_size])
-        
-        train_loader = DataLoader(train_set, 
-                                 batch_size=self.config['batch_size'], 
-                                 shuffle=True)
-        val_loader = DataLoader(val_set, 
-                               batch_size=self.config['batch_size'])
-        
-        # Setup optimizer and scheduler
-        optimizer = optim.Adam(self.parameters(), 
-                              lr=0.001, 
-                              betas=(0.9, 0.999))
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, 
-            mode='min', 
-            factor=0.5, 
-            patience=5
+            nn.Conv2d(64, 128, kernel_size=5, stride=2, padding=2),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            
+            nn.Conv2d(128, 256, kernel_size=5, stride=2, padding=2),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            
+            nn.Conv2d(256, 512, kernel_size=5, stride=2, padding=2),
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True),
+            
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(),
+            
+            # Linear projection to latent space
+            nn.Linear(512, latent_dim)
         )
+        
+        # Decoder fully connected layer
+        self.decoder_fc = nn.Linear(latent_dim, 512 * 4 * 4)
+        
+        # Decoder layers with transposed convolutions
+        self.decoder = nn.Sequential(
+            nn.Unflatten(1, (512, 4, 4)),
+            
+            nn.ConvTranspose2d(512, 256, kernel_size=5, stride=2, padding=2, output_padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            
+            nn.ConvTranspose2d(256, 128, kernel_size=5, stride=2, padding=2, output_padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            
+            nn.ConvTranspose2d(128, 64, kernel_size=5, stride=2, padding=2, output_padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            
+            nn.ConvTranspose2d(64, 32, kernel_size=5, stride=2, padding=2, output_padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            
+            # Output layer with sigmoid activation for [0,1] normalization
+            nn.ConvTranspose2d(32, 1, kernel_size=5, stride=2, padding=2, output_padding=1),
+            nn.Sigmoid()
+        )
+        
+        self.latent_dim = latent_dim
+        
+    def forward(self, x):
+        # Encode input to latent representation
+        encoded = self.encoder(x)
+        
+        # Decode to reconstruct input
+        decoded_fc = self.decoder_fc(encoded)
+        reconstructed = self.decoder(decoded_fc)
+        
+        return reconstructed, encoded
+
+class AnomalyDetector:
+    """
+    Autoencoder-based anomaly detection system for wing image quality assessment.
+    
+    Implements reconstruction error analysis with dynamic threshold determination
+    based on statistical deviation from normal reconstruction patterns.
+    """
+    
+    def __init__(self, model_save_path='autoencoder_model.pth', device=None):
+        self.device = device if device else torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.model = ConvolutionalAutoencoder().to(self.device)
+        self.model_save_path = model_save_path
+        self.reconstruction_errors = []
+        self.threshold = None
+        
+        logger.info(f"Initialized autoencoder with {self._count_parameters()} parameters")
+        logger.info(f"Using device: {self.device}")
+    
+    def _count_parameters(self):
+        """Count trainable parameters in the model."""
+        return sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+    
+    def train(self, train_loader, val_loader=None, epochs=None, learning_rate=None, 
+              patience_scheduler=None, patience_early_stopping=None, delta=None):
+        """
+        Train autoencoder with Adam optimizer and learning rate scheduling.
+        
+        Args:
+            train_loader: DataLoader for training data
+            val_loader: DataLoader for validation data
+            epochs: Maximum number of training epochs
+            learning_rate: Initial learning rate for Adam optimizer
+            patience_scheduler: Patience for learning rate reduction
+            patience_early_stopping: Patience for early stopping
+            delta: Minimum change threshold for early stopping
+        """
+        # Initialize Adam optimizer with specified hyperparameters
+        optimizer = optim.Adam(self.model.parameters(), 
+                             lr=learning_rate, 
+                             betas=(0.9, 0.999))
+        
+        # Learning rate scheduler with plateau detection
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
+                                                        mode='min',
+                                                        patience=patience_scheduler,
+                                                        factor=0.5,
+                                                        verbose=True)
+        
+        # Mean squared error loss for pixel-wise reconstruction
         criterion = nn.MSELoss()
         
-        # Training loop
+        # Early stopping implementation
         best_loss = float('inf')
-        early_stop_counter = 0
+        patience_counter = 0
         
-        for epoch in range(self.config['epochs']):
+        train_losses = []
+        val_losses = []
+        
+        logger.info("Starting training...")
+        
+        for epoch in range(epochs):
             # Training phase
-            self.train()
-            train_loss = 0
-            for x, y in tqdm(train_loader, desc=f'Epoch {epoch+1}/{self.config["epochs"]}'):
+            self.model.train()
+            train_loss = 0.0
+            
+            for batch_idx, (data, _) in enumerate(tqdm(train_loader, desc=f'Epoch {epoch+1}/{epochs}')):
+                data = data.to(self.device)
+                
                 optimizer.zero_grad()
-                outputs = self(x)
-                loss = criterion(outputs, y)
+                reconstructed, _ = self.model(data)
+                loss = criterion(reconstructed, data)
                 loss.backward()
                 optimizer.step()
+                
                 train_loss += loss.item()
             
-            # Validation phase
-            self.eval()
-            val_loss = 0
-            with torch.no_grad():
-                for x, y in val_loader:
-                    outputs = self(x)
-                    val_loss += criterion(outputs, y).item()
-            
-            # Calculate average losses
             avg_train_loss = train_loss / len(train_loader)
-            avg_val_loss = val_loss / len(val_loader)
+            train_losses.append(avg_train_loss)
             
-            # Update scheduler
-            scheduler.step(avg_val_loss)
-            
-            # Early stopping check
-            if avg_val_loss < best_loss - self.config['early_stopping_delta']:
-                best_loss = avg_val_loss
-                early_stop_counter = 0
-                # Save best model
-                torch.save({
-                    'epoch': epoch,
-                    'model_state_dict': self.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                    'loss': best_loss,
-                }, 'best_model.pth')
-            else:
-                early_stop_counter += 1
-                if early_stop_counter >= self.config['early_stopping_patience']:
-                    print(f"Early stopping at epoch {epoch+1}")
+            # Validation phase
+            if val_loader:
+                self.model.eval()
+                val_loss = 0.0
+                
+                with torch.no_grad():
+                    for data, _ in val_loader:
+                        data = data.to(self.device)
+                        reconstructed, _ = self.model(data)
+                        loss = criterion(reconstructed, data)
+                        val_loss += loss.item()
+                
+                avg_val_loss = val_loss / len(val_loader)
+                val_losses.append(avg_val_loss)
+                scheduler.step(avg_val_loss)
+                
+                if avg_val_loss < best_loss - delta:
+                    bestLoss = avg_val_loss
+                    patience_counter = 0
+                    torch.save({'epoch': epoch,'model_state_dict': self.model.state_dict(),'optimizer_state_dict': optimizer.state_dict(),'loss': bestLoss,},self.model_save_path)
+                else:
+                    patience_counter += 1
+                
+                logger.info(f'Epoch {epoch+1}: Train Loss: {avg_train_loss:.6f}, Val Loss: {avg_val_loss:.6f}')
+                
+                if patience_counter >= patience_early_stopping:
+                    logger.info(f'Early stopping at epoch {epoch+1}')
                     break
-            
-            print(f"Epoch {epoch+1}/{self.config['epochs']} | "
-                  f"Train Loss: {avg_train_loss:.4f} | "
-                  f"Val Loss: {avg_val_loss:.4f} | "
-                  f"LR: {optimizer.param_groups[0]['lr']:.6f}")
-    
-    def detect_anomalies(self, test_data):
-        self.eval()
-        tensor_data = torch.tensor(test_data, dtype=torch.float32)
-        tensor_data = tensor_data.permute(0, 3, 1, 2)  # to (B, C, H, W)
+            else:
+                logger.info(f'Epoch {epoch+1}: Train Loss: {avg_train_loss:.6f}')
         
-        with torch.no_grad():
-            reconstructions = self(tensor_data).detach().numpy()
-            reconstructions = reconstructions.transpose(0, 2, 3, 1)  # back to (B, H, W, C)
+        if val_loader and os.path.exists(self.model_save_path):
+            checkpoint = torch.load(self.model_save_path)
+            self.model.load_state_dict(checkpoint['model_state_dict'])
+            logger.info("Loaded best model weights")
         
-        mse = np.mean(np.square(test_data - reconstructions), axis=(1, 2, 3))
-        return mse > self.config['anomaly_threshold'], mse
+        return train_losses, val_losses
+    # ... rest of AnomalyDetector unchanged ...
 
-# Extended configuration with training parameters
-full_config = {
-    'input_shape': [128, 128, 1],
-    'encoder_filters': [32, 64],
-    'decoder_filters': [64, 32],
-    'latent_dim': 32,
-    'epochs': 50,
-    'batch_size': 32,
-    'validation_split': 0.2,
-    'anomaly_threshold': 0.035,
-    'learning_rate': 0.001,
-    'reduce_lr_factor': 0.5,
-    'reduce_lr_patience': 5,
-    'early_stopping_patience': 10,
-    'early_stopping_delta': 0.001
-}
+def main():
+    """
+    Main execution pipeline for autoencoder-based anomaly detection.
+    """
+    # Load configuration from YAML
+    with open('configs/autoencoder_params.yaml') as f:
+        config = yaml.safe_load(f)
 
-# Save extended config to YAML
-with open('configs/autoencoder_params_full.yaml', 'w') as f:
-    yaml.dump(full_config, f)
+    # Collect image paths from directory
+    image_extensions = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff']
+    image_paths = []
+    for ext in image_extensions:
+        image_paths.extend(Path(config['data_dir']).glob(f'**/*{ext}'))
+    image_paths = [str(path) for path in image_paths]
 
-# Example usage
+    # Create train/validation split
+    np.random.seed(42)
+    np.random.shuffle(image_paths)
+    split_idx = int(len(image_paths) * config['train_split'])
+    train_paths = image_paths[:split_idx]
+    val_paths = image_paths[split_idx:]
+
+    train_dataset = WingImageDataset(train_paths)
+    val_dataset = WingImageDataset(val_paths)
+
+    train_loader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True, num_workers=4)
+    val_loader   = DataLoader(val_dataset,   batch_size=config['batch_size'], shuffle=False, num_workers=4)
+
+    detector = AnomalyDetector(model_save_path=config['model_save_path'])
+    train_losses, val_losses = detector.train(
+        train_loader, val_loader,
+        epochs=config['epochs'],
+        learning_rate=config['learning_rate'],
+        patience_scheduler=config['reduce_lr_patience'],
+        patience_early_stopping=config['early_stopping_patience'],
+        delta=config['early_stopping_delta']
+    )
+
+    detector.compute_reconstruction_errors(train_loader)
+    detector.set_threshold(sigma_multiplier=3)
+    detector.plot_reconstruction_errors(save_path='reconstruction_errors.png')
+
+    if os.path.exists(config['expert_annotations']):
+        detector.evaluate_on_expert_annotations(config['expert_annotations'], val_loader)
+
+    all_loader = DataLoader(WingImageDataset(image_paths), batch_size=config['batch_size'], shuffle=False)
+    normal_images, anomalous_images, stats = detector.filter_dataset(image_paths, config['output_dir'])
+
+    logger.info("Anomaly detection pipeline completed successfully")
+    logger.info(f"Results saved to: {config['output_dir']}")
+
 if __name__ == "__main__":
-    # Initialize with config
-    model = ConvolutionalAutoencoder(full_config)
-    
-    # Sample data (replace with actual data)
-    sample_data = np.random.rand(1000, 128, 128, 1).astype(np.float32)
-    
-    # Train model
-    model.train_model(sample_data)
-    
-    # Detect anomalies
-    test_data = np.random.rand(100, 128, 128, 1).astype(np.float32)
-    is_anomaly, mse_scores = model.detect_anomalies(test_data)
+    main()
