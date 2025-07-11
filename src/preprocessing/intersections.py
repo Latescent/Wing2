@@ -106,7 +106,7 @@ def find_intersections_via_hit_or_miss(skeleton, show=False):
     if show:
         display_image = cv2.cvtColor(skeleton * 255, cv2.COLOR_GRAY2BGR)
         for coord in cleaned_coords:
-            cv2.circle(display_image, coord[::-1], radius=5, color=(0, 118, 238), thickness=-1)
+            cv2.circle(display_image, coord[::-1], radius=5, color=(0, 0, 255), thickness=-1)
         cv2.imshow('Detected Intersections', display_image)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
