@@ -89,7 +89,6 @@ def save_images_by_cluster(image_folder: str, image_names: str, clusters: np.nda
 
 
 if __name__ == "__name__":
-
     # Set the image folder path
     image_folder = "../../data/raw_sample/"
 
