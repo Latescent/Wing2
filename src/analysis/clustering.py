@@ -107,7 +107,7 @@ if __name__ == "__name__":
     linked = linkage(image_vectors_scaled, method="ward")
 
     # Define the distance threshold or the number of clusters you want to generate
-    distance_threshold = 135  # Adjust this value based on your data (e.g., 100)
+    distance_threshold = 50.76  # Adjust this value based on your data (e.g., 100)
     clusters = fcluster(linked, t=distance_threshold, criterion="distance")
 
     # Count the number of unique clusters
