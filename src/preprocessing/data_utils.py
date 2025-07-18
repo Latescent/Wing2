@@ -44,3 +44,22 @@ def load_images_as_vectors(image_folder: str) -> tuple[np.ndarray, list[str]]:
         image_vectors = pool.map(process_single_image, image_paths)
 
     return np.array(image_vectors), image_names
+
+
+def get_image_paths(image_folder: str) -> list[str]:
+    """Finds all image paths in a directory and sorts them.
+
+    Args:
+        image_folder (str): The path to the folder containing images.
+
+    Returns:
+        list[str]: A sorted list of full paths to the image files.
+    """
+    image_extensions = (".png", ".jpg", ".jpeg", ".bmp")
+    image_paths = [
+        os.path.join(image_folder, f)
+        for f in os.listdir(image_folder)
+        if f.endswith(image_extensions)
+    ]
+    image_paths.sort()
+    return image_paths

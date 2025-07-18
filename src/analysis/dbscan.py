@@ -1,6 +1,7 @@
 import os
 import shutil
 import sys
+import yaml
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,10 +38,17 @@ def save_images_by_cluster(
 
 
 if __name__ == "__main__":
-    # Set the image folder path
-    image_folder = (
-        "/home/neutral/Desktop/CODE/Mod-labeled"  # Replace with your image folder path
-    )
+    # --- Load Configuration ---
+    config_path = os.path.join(os.path.dirname(__file__), '../../configs/', 'config.yaml')
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    # Get general paths and method-specific parameters
+    image_folder = config["data_dir"]
+    output_folder = config["output_dir"]
+    params = config["dbscan_clustering"]
+    eps = params["eps"]
+    min_samples = params["min_samples"]
 
     # Load and preprocess image data
     image_vectors, image_names = load_images_as_vectors(image_folder)
@@ -52,7 +60,7 @@ if __name__ == "__main__":
     # Apply DBSCAN
     # eps: The maximum distance between two samples for one to be considered as in the neighborhood of the other.
     # min_samples: The number of samples in a neighborhood for a point to be considered as a core point.
-    dbscan = DBSCAN(eps=15, min_samples=5)  # Note: eps may need significant tuning
+    dbscan = DBSCAN(eps=eps, min_samples=min_samples)  # Note: eps may need significant tuning
     dbscan_labels = dbscan.fit_predict(X_scaled)
 
     # Save the clustered images into folders

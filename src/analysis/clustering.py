@@ -10,6 +10,7 @@ separate directories, and a dendrogram can be displayed for visualization.
 import os
 import shutil
 import sys
+import yaml
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -44,14 +45,24 @@ def save_images_by_cluster(image_folder: str, image_names: list[str], clusters: 
 
 
 if __name__ == "__name__":
-    # Set the image folder path
-    image_folder = "../../data/raw_sample/"
+    # --- Load Configuration from the root directory ---
+    # The path is relative to this script's location
+    config_path = os.path.join(os.path.dirname(__file__), '../../configs', 'config.yaml')
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    # Get general paths and method-specific parameters
+    image_folder = config["data_dir"]
+    output_folder = config["output_dir"]
+    params = config["hierarchical_clustering"]
+    n_components = params["n_components"]
+    distance_threshold = params["distance_threshold"]
 
     # Load and preprocess image data
     image_vectors, image_names = load_images_as_vectors(image_folder)
 
     # Optionally reduce dimensionality using PCA (optional for very large datasets)
-    pca = PCA(n_components=50)  # Reduce to 50 components
+    pca = PCA(n_components)  # Reduce to 50 components
     image_vectors_pca = pca.fit_transform(image_vectors)
 
     # Standardize the features
@@ -62,7 +73,6 @@ if __name__ == "__name__":
     linked = linkage(image_vectors_scaled, method="ward")
 
     # Define the distance threshold or the number of clusters you want to generate
-    distance_threshold = 50.76  # Adjust this value based on your data (e.g., 100)
     clusters = fcluster(linked, t=distance_threshold, criterion="distance")
 
     # Count the number of unique clusters

@@ -1,0 +1,53 @@
+# ===================================================================
+# Main Project Configuration
+# ===================================================================
+
+# --- General Paths ---
+# Path to the source directory containing all raw images for analysis.
+data_dir: "data/raw_sample/" # <-- IMPORTANT: Set this to your main data folder.
+
+# Path for all generated output. Each script will create a sub-folder here.
+output_dir: "output/"
+
+
+# ===================================================================
+# Method-Specific Parameters
+# ===================================================================
+
+# --- Hierarchical Clustering ---
+hierarchical_clustering:
+  # The number of principal components to reduce the feature vectors to before clustering.
+  # This helps speed up clustering and can improve results by focusing on the most significant variations.
+  n_components: 50
+
+  # The distance threshold used to form flat clusters from the dendrogram.
+  # Any links in the hierarchy with a distance greater than this value will be cut.
+  # This value requires tuning based on the dataset's characteristics.
+  distance_threshold: 50.76
+
+# --- DBSCAN Clustering ---
+dbscan_clustering:
+  # The maximum distance between two samples for one to be considered as in the neighborhood of the other.
+  # This is the most important DBSCAN parameter to tune.
+  eps: 15.0
+
+  # The number of samples (or total weight) in a neighborhood for a point to be considered as a core point.
+  # This includes the point itself.
+  min_samples: 5
+
+# --- Isolation Forest & Intersection Analysis ---
+classification_analysis:
+  # The proportion of outliers or anomalies in the dataset for the Isolation Forest model.
+  contamination: 0.2
+
+  # The area (in pixels) below which a contour is considered 'noise' during feature extraction.
+  contour_area_threshold: 50
+
+  # Parameters for the intersection-based outlier detection method.
+  intersection_matching:
+    # The minimum percentage of coordinates that must match for two image patterns to be considered similar.
+    match_threshold: 0.8
+    # The maximum distance (in pixels) between two intersection points to be considered a match.
+    distance_threshold: 10
+
+
