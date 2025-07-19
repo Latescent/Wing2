@@ -16,16 +16,16 @@ The primary function for executing this pipeline is `process_bee_wing`.
 """
 import cv2
 import numpy as np
-from sklearn.decomposition import PCA
 import os
-from intersections import find_intersections_via_hit_or_miss
 import threading
+from intersections import find_intersections_via_hit_or_miss
+from sklearn.decomposition import PCA
 
 counter = 0
 counter_lock = threading.Lock()
 
 
-def show_debug_images(scope, names_to_show):
+def show_debug_images(scope: dict, names_to_show: tuple):
     """Displays intermediate images for debugging purposes.
 
     Args:
@@ -47,7 +47,7 @@ def show_debug_images(scope, names_to_show):
                       f"It may not be a valid image format for cv2.imshow().")
 
 
-def preprocess_image(image, preprocess_image_args: list, *debug_mode):
+def preprocess_image(image: np.ndarray, preprocess_image_args: list, *debug_mode: str):
     """Applies a series of preprocessing steps to a bee wing image.
 
     This function converts the image to grayscale, reduces noise, enhances
@@ -113,7 +113,7 @@ def preprocess_image(image, preprocess_image_args: list, *debug_mode):
     return cleaned_binary
 
 
-def remove_noise(binary_image, remove_noise_args: list, *debug_mode):
+def remove_noise(binary_image: np.ndarray, remove_noise_args: list, *debug_mode: str):
     """Removes noise from a binary image using morphological operations.
 
     Args:
@@ -144,7 +144,7 @@ def remove_noise(binary_image, remove_noise_args: list, *debug_mode):
     return cleaned_image
 
 
-def remove_small_black_regions(binary_image, *debug_mode):
+def remove_small_black_regions(binary_image: np.ndarray, *debug_mode: str):
     """Removes small, isolated black regions (holes) from a binary image.
 
     It identifies all connected components of black pixels and fills those
@@ -173,7 +173,7 @@ def remove_small_black_regions(binary_image, *debug_mode):
     return output_image
 
 
-def find_orientation(binary_image):
+def find_orientation(binary_image: np.ndarray):
     """Calculates the dominant orientation of veins in the binary image.
 
     Uses Principal Component Analysis (PCA) on the coordinates of the vein
@@ -194,7 +194,7 @@ def find_orientation(binary_image):
     return angle
 
 
-def rotate_image(image, angle, *debug_mode):
+def rotate_image(image: np.ndarray, angle: float, *debug_mode: str):
     """Rotates the image to align the vein structure vertically.
 
     The image is rotated to counteract the angle found by `find_orientation`,
@@ -226,7 +226,7 @@ def rotate_image(image, angle, *debug_mode):
     return padded_rotated
 
 
-def extract_skeleton(binary_image, *debug_mode):
+def extract_skeleton(binary_image: np.ndarray, *debug_mode: str):
     """Extracts the skeleton of the vein structure from a binary image.
 
     This function uses a thinning algorithm to reduce the veins to a
@@ -247,7 +247,7 @@ def extract_skeleton(binary_image, *debug_mode):
     return skeleton
 
 
-def crop_image(skeletonized, image_path, *debug_mode):
+def crop_image(skeletonized: np.ndarray, image_path: str, *debug_mode: str):
     """Crops the skeletonized image to the relevant vein area.
 
     This function first applies hard-coded adjustments based on the image's
@@ -347,7 +347,7 @@ def crop_image(skeletonized, image_path, *debug_mode):
     return cropped_image
 
 
-def process_bee_wing(image_path, args: list, out, *debug_mode):
+def process_bee_wing(image_path: str, args: list, out: str, *debug_mode: str):
     """Processes a single bee wing image from loading to saving the skeleton.
 
     This function orchestrates the entire pipeline: loading, preprocessing,
