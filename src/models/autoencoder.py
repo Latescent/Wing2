@@ -497,8 +497,10 @@ def main():
     Main execution pipeline for autoencoder-based anomaly detection.
     """
     # Load configuration from YAML
-    with open("configs/autoencoder_params.yaml") as f:
+    config_path = os.path.join(os.path.dirname(__file__), '../../configs/', 'config.yaml')
+    with open(config_path, "r") as f:
         config = yaml.safe_load(f)
+    params = config["autoencoder"]
 
     # Collect image paths from directory
     image_extensions = [".jpg", ".jpeg", ".png", ".bmp", ".tiff"]
@@ -510,29 +512,30 @@ def main():
     # Create train/validation split
     np.random.seed(42)
     np.random.shuffle(image_paths)
-    split_idx = int(len(image_paths) * config["train_split"])
+    split_idx = int(len(image_paths) * params["train_split"])
     train_paths = image_paths[:split_idx]
     val_paths = image_paths[split_idx:]
-
+    #WARN: parameters valid
     train_dataset = WingImageDataset(train_paths)
     val_dataset = WingImageDataset(val_paths)
-
+    #WARN: Fed to torch util
     train_loader = DataLoader(
-        train_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=4
+        train_dataset, batch_size=params["batch_size"], shuffle=True, num_workers=-1
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=4
+        val_dataset, batch_size=params["batch_size"], shuffle=False, num_workers=-1
     )
-
-    detector = AnomalyDetector(model_save_path=config["model_save_path"])
+    #WARN: save path added
+    detector = AnomalyDetector(model_save_path=params["model_save_path"])
+    #WARN: checking...
     train_losses, val_losses = detector.train(
         train_loader,
         val_loader,
-        epochs=config["epochs"],
-        learning_rate=config["learning_rate"],
-        patience_scheduler=config["reduce_lr_patience"],
-        patience_early_stopping=config["early_stopping_patience"],
-        delta=config["early_stopping_delta"],
+        epochs=params["epochs"],
+        learning_rate=params["learning_rate"],
+        patience_scheduler=params["reduce_lr_patience"],
+        patience_early_stopping=params["early_stopping_patience"],
+        delta=params["early_stopping_delta"],
     )
 
     #NOTE: The following methods were not defined in the previous version of the script.
@@ -543,13 +546,13 @@ def main():
     detector.set_threshold(sigma_multiplier=3)
     detector.plot_reconstruction_errors(save_path="reconstruction_errors.png")
 
-    if os.path.exists(config["expert_annotations"]):
+    if os.path.exists(params["expert_annotations"]):
         detector.evaluate_on_expert_annotations(
-            config["expert_annotations"], val_loader
+            params["expert_annotations"], val_loader
         )
 
     all_loader = DataLoader(
-        WingImageDataset(image_paths), batch_size=config["batch_size"], shuffle=False
+        WingImageDataset(image_paths), batch_size=params["batch_size"], shuffle=False
     )
     normal_images, anomalous_images, stats = detector.filter_dataset(
         image_paths, config["output_dir"]

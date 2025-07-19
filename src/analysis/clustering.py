@@ -88,7 +88,7 @@ if __name__ == "__name__":
         linked,
         labels=image_names,
         orientation="top",
-        distance_sort="descending",
+        distance_sort="descending", #type: ignore
         show_leaf_counts=True,
     )
     plt.title("Hierarchical Clustering Dendrogram")
