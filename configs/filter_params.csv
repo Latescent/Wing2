@@ -1,4 +1,4 @@
-folder_name,noise_level,nlm_h,nlm_tws,nlm_sws,gb_kernel,clahe_cl,clahe_tgs,thresh_bs,thresh_c,morphx_kernel,kernel_open,kernel_close
+origin,noise_level,nlm_h,nlm_tws,nlm_sws,gb_kernel,clahe_cl,clahe_tgs,thresh_bs,thresh_c,morphx_kernel,kernel_open,kernel_close
 PL,6.985424958436194,7,29,42,"(3,3)",2.2,"(20,20)",33,9.1,"(2,2)","(2,2)","(5,5)"
 PL,7.943039951634843,5,29,42,"(3,3)",2.2,"(20,20)",33,9.1,"(2,2)","(2,2)","(5,5)"
 PL,25.35782086161021,5,29,42,"(3,3)",2.2,"(20,20)",33,9.1,"(2,2)","(2,2)","(5,5)"
