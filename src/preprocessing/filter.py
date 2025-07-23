@@ -21,9 +21,6 @@ import threading
 from intersections import find_intersections_via_hit_or_miss
 from sklearn.decomposition import PCA
 
-counter = 0
-counter_lock = threading.Lock()
-
 
 def show_debug_images(scope: dict, names_to_show: tuple):
     """Displays intermediate images for debugging purposes.
@@ -393,10 +390,7 @@ def process_bee_wing(image_path: str, args: list, out: str, *debug_mode: str):
     out_path = os.path.join(out, os.path.basename(image_path))
     cv2.imwrite(out_path, cropped)
 
-    global counter
-    with counter_lock:
-        counter += 1
-        print(f"Skeletonized {image_path} ---> {out_path} | {counter}")
+    print(f"Skeletonized {image_path} ---> {out_path}")
 
 
 def main():

@@ -33,7 +33,7 @@ def progress_bar(total: int, current: int, prefix: str = "", suffix: str = "") -
         sys.stdout.write("\n")
 
 
-def read_csv(file_path):
+def read_csv(file_path) -> list[list[str]]:
     """
     Reads a CSV file and converts it into a list of lists.
 
@@ -62,7 +62,19 @@ def read_csv(file_path):
     return data_list
 
 
-def noise_level_detection(image_dir):
+def noise_level_detection(image_dir: str):
+    """
+    Takes the mean value of the pixel colors of a black and white image.
+
+    Args:
+        image_dir (str): Path to the image.
+
+    Returns:
+        tuple[str, float]: A tuple that contains the image name and the brightness value.
+
+    Raises:
+        ValueError if image doesn't exist.
+    """
     image = cv2.imread(image_dir, cv2.IMREAD_GRAYSCALE)
     
     if image is None:
@@ -75,3 +87,20 @@ def noise_level_detection(image_dir):
 
     return (os.path.basename(image_dir), float(mean_value))
 
+
+def string_to_tuple(input: str) -> tuple:
+    """
+    Takes a tuple in the form of a string and returns the original tuple
+
+    Args:
+        input (str): A string containing a tuple
+
+    Returns:
+        tuple[int]: The tuple inside the input string
+    """
+    params = input.replace("(", "").replace(")", "").split(",")
+    result = [int(item) for item in params]
+    return tuple(result)
+
+def tuple_to_string(input: tuple) -> str:
+    return f"({input[0]},{input[1]})"
