@@ -14,10 +14,15 @@ The main workflow involves:
 
 The primary function for executing this pipeline is `process_bee_wing`.
 """
+
 import cv2
 import numpy as np
 import os
+import sys
 import threading
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "")))
+
 from intersections import find_intersections_via_hit_or_miss
 from sklearn.decomposition import PCA
 
@@ -40,8 +45,10 @@ def show_debug_images(scope: dict, names_to_show: tuple):
             try:
                 cv2.imshow(name, image)
             except cv2.error:
-                print(f"Warning: Could not display debug image '{name}'. "
-                      f"It may not be a valid image format for cv2.imshow().")
+                print(
+                    f"Warning: Could not display debug image '{name}'. "
+                    f"It may not be a valid image format for cv2.imshow()."
+                )
 
 
 def preprocess_image(image: np.ndarray, preprocess_image_args: list, *debug_mode: str):
@@ -67,8 +74,17 @@ def preprocess_image(image: np.ndarray, preprocess_image_args: list, *debug_mode
     if len(preprocess_image_args) != 9:
         raise ValueError
 
-    nlm_h, nlm_tws, nlm_sws, gb_kernel, clahe_cl, clahe_tgs, thresh_bs, \
-        thresh_c, morphx_kernel = preprocess_image_args
+    (
+        nlm_h,
+        nlm_tws,
+        nlm_sws,
+        gb_kernel,
+        clahe_cl,
+        clahe_tgs,
+        thresh_bs,
+        thresh_c,
+        morphx_kernel,
+    ) = preprocess_image_args
 
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -79,15 +95,18 @@ def preprocess_image(image: np.ndarray, preprocess_image_args: list, *debug_mode
                 gray[y, x] = 190
 
     denoised = cv2.fastNlMeansDenoising(
-        gray, None, h=nlm_h, templateWindowSize=nlm_tws,
-        searchWindowSize=nlm_sws
+        gray, None, h=nlm_h, templateWindowSize=nlm_tws, searchWindowSize=nlm_sws
     )
     blurred = cv2.GaussianBlur(denoised, gb_kernel, 0)
     clahe = cv2.createCLAHE(clipLimit=clahe_cl, tileGridSize=clahe_tgs)
     enhanced_gray = clahe.apply(blurred)
     thresh = cv2.adaptiveThreshold(
-        enhanced_gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY_INV, thresh_bs, thresh_c
+        enhanced_gray,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY_INV,
+        thresh_bs,
+        thresh_c,
     )
     kernel_close = np.ones(morphx_kernel, np.uint8)
     closed_binary = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel_close)
@@ -99,9 +118,7 @@ def preprocess_image(image: np.ndarray, preprocess_image_args: list, *debug_mode
     for label in range(1, labelnum):
         x, y, w, h, size = stats[label]
         if size <= 1000:
-            contour = np.array(
-                [[[x, y]], [[x + w, y]], [[x + w, y + h]], [[x, y + h]]]
-            )
+            contour = np.array([[[x, y]], [[x + w, y]], [[x + w, y + h]], [[x, y + h]]])
             cv2.drawContours(mask, [contour], -1, 255, -1)
     cleaned_binary = cv2.bitwise_and(closed_binary, ~mask)
 
@@ -133,8 +150,7 @@ def remove_noise(binary_image: np.ndarray, remove_noise_args: list, *debug_mode:
     kernel_open = np.ones(kernel_o, np.uint8)
     kernel_close = np.ones(kernel_c, np.uint8)
     opened_image = cv2.morphologyEx(binary_image, cv2.MORPH_OPEN, kernel_open)
-    cleaned_image = cv2.morphologyEx(opened_image, cv2.MORPH_CLOSE,
-                                     kernel_close)
+    cleaned_image = cv2.morphologyEx(opened_image, cv2.MORPH_CLOSE, kernel_close)
 
     show_debug_images(locals(), debug_mode)
 
@@ -211,8 +227,7 @@ def rotate_image(image: np.ndarray, angle: float, *debug_mode: str):
     center = (w // 2, h // 2)
     M = cv2.getRotationMatrix2D(center, -(angle - 90), 1.0)
     rotated = cv2.warpAffine(
-        image, M, (w, h), flags=cv2.INTER_CUBIC,
-        borderMode=cv2.BORDER_REPLICATE
+        image, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE
     )
     padded_rotated = cv2.copyMakeBorder(
         rotated, 10, 10, 10, 10, cv2.BORDER_CONSTANT, value=[0, 0, 0]
@@ -236,8 +251,7 @@ def extract_skeleton(binary_image: np.ndarray, *debug_mode: str):
     Returns:
         np.ndarray: The skeletonized image.
     """
-    skeleton = cv2.ximgproc.thinning(binary_image,
-                                     cv2.ximgproc.THINNING_ZHANGSUEN)
+    skeleton = cv2.ximgproc.thinning(binary_image, cv2.ximgproc.THINNING_ZHANGSUEN)
 
     show_debug_images(locals(), debug_mode)
 
@@ -260,6 +274,7 @@ def crop_image(skeletonized: np.ndarray, image_path: str, *debug_mode: str):
     Returns:
         np.ndarray: The cropped image.
     """
+
     def find_the_leftmost_pixel(image):
         h, w = image.shape[:2]
         for x in range(w):
@@ -282,8 +297,11 @@ def crop_image(skeletonized: np.ndarray, image_path: str, *debug_mode: str):
         for i in range(1, len(white_pixels)):
             upper_line = white_pixels[i]
             lower_line = white_pixels[i - 1]
-            if upper_line[1] > 1 and lower_line[1] == 0 and \
-               upper_line[1] - lower_line[1] > 5:
+            if (
+                upper_line[1] > 1
+                and lower_line[1] == 0
+                and upper_line[1] - lower_line[1] > 5
+            ):
                 borders.append(upper_line)
 
         return borders[1][0] if len(borders) == 2 else None
@@ -311,9 +329,12 @@ def crop_image(skeletonized: np.ndarray, image_path: str, *debug_mode: str):
     h, w = skeletonized.shape[:2]
     average = 0
     if "PL" in image_path:
-        if 1000 < w: average = (w * 35) / 100
-        elif 800 < w < 1000: average = (w * 25) / 100
-        elif 600 < w < 800: average = (w * 15) / 100
+        if 1000 < w:
+            average = (w * 35) / 100
+        elif 800 < w < 1000:
+            average = (w * 25) / 100
+        elif 600 < w < 800:
+            average = (w * 15) / 100
 
     left_intersection, upper_intersection = w, h
     right_intersection, lower_intersection = 0, 0
@@ -333,10 +354,10 @@ def crop_image(skeletonized: np.ndarray, image_path: str, *debug_mode: str):
 
     x1, x2 = int(left_intersection - 15), int(right_intersection + 15)
     y1, y2 = int(upper_intersection - 25), int(lower_intersection + 15)
-    
+
     x1, y1 = max(0, x1), max(0, y1)
     x2, y2 = min(w, x2), min(h, y2)
-    
+
     cropped_image = skeletonized[y1:y2, x1:x2]
 
     show_debug_images(locals(), debug_mode)
@@ -396,16 +417,26 @@ def process_bee_wing(image_path: str, args: list, out: str, *debug_mode: str):
 def main():
     """Main function to demonstrate the bee wing processing pipeline."""
     # Please update the input and output paths before running
-    input_image_path = r'path/to/your/image.png'
-    output_directory = r'path/to/your/output_directory'
+    input_image_path = r"path/to/your/image.png"
+    output_directory = r"path/to/your/output_directory"
 
     arg_list = [12, 29, 42, (3, 3), 2.2, (20, 20), 43, 11.9, (2, 2), (2, 2), (5, 5)]
 
     # To run with debug views, pass the names of intermediate images as strings
     process_bee_wing(
-        input_image_path, arg_list, output_directory,
-        'gray', 'denoised', 'blurred', 'enhanced_gray', 'thresh',
-        'closed_binary', 'cleaned_image', 'rotated', 'skeleton', 'cropped'
+        input_image_path,
+        arg_list,
+        output_directory,
+        "gray",
+        "denoised",
+        "blurred",
+        "enhanced_gray",
+        "thresh",
+        "closed_binary",
+        "cleaned_image",
+        "rotated",
+        "skeleton",
+        "cropped",
     )
 
 
