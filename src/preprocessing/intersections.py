@@ -3,14 +3,16 @@ import numpy as np
 import argparse
 
 
-def cleanup_intersections(coords: list[tuple[int, int]], distance_threshold: int = 8) -> list[tuple[int, int]]:
+def cleanup_intersections(
+    coords: list[tuple[int, int]], distance_threshold: int = 8
+) -> list[tuple[int, int]]:
     """
     Cleans up a list of coordinates by merging points that are close to each other.
 
     This function implements a simple clustering algorithm. It iterates through the
     points, and for each point, it forms a cluster of all other points within
     the specified distance threshold. The centroid of this cluster then replaces
-    the individual points. This is more efficient than a pairwise comparison, 
+    the individual points. This is more efficient than a pairwise comparison,
     especially for a large number of coordinates.
 
     Args:
@@ -27,28 +29,29 @@ def cleanup_intersections(coords: list[tuple[int, int]], distance_threshold: int
     # Use a copy of the list to safely remove items while iterating
     remaining_coords = coords[:]
     merged_coords = []
-    
+
     while remaining_coords:
         # Start a new cluster with the first point in the list
         base_pt = remaining_coords.pop(0)
         cluster = [base_pt]
-        
+
         # Find all other points within the threshold distance of the base point
         # A list comprehension is used for a concise inner loop
         other_pts_in_cluster = [
-            pt for pt in remaining_coords 
+            pt
+            for pt in remaining_coords
             if np.linalg.norm(np.array(base_pt) - np.array(pt)) < distance_threshold
         ]
-        
+
         # Add found points to the cluster and remove them from the remaining list
         cluster.extend(other_pts_in_cluster)
         for pt in other_pts_in_cluster:
             remaining_coords.remove(pt)
-            
+
         # Calculate the centroid of the cluster and add it to the results
         centroid = np.mean(cluster, axis=0)
         merged_coords.append(tuple(np.round(centroid).astype(int)))
-        
+
     return merged_coords
 
 
@@ -59,7 +62,7 @@ def find_intersections_via_hit_or_miss(skeleton, show=False):
 
     The hit-or-miss transform finds pixels in the image that match a specific
     pattern defined by a kernel. This function uses a set of kernels that
-    represent various types of line intersections (e.g., T-junctions, 
+    represent various types of line intersections (e.g., T-junctions,
     X-junctions, Y-junctions).
 
     Args:
@@ -79,16 +82,32 @@ def find_intersections_via_hit_or_miss(skeleton, show=False):
     # All other unique kernels that will be rotated to cover all orientations.
     # This list is now a comprehensive representation of the original kernels.
     kernels_to_rotate = [
-        np.array([[1, 0, 1], [0, 1, 0], [0, 1, 0]], dtype=np.uint8), # Original kernel_6
-        np.array([[1, 1, 1], [0, 1, 0], [0, 1, 0]], dtype=np.uint8), # Original kernel_3
-        np.array([[0, 0, 1], [1, 1, 1], [0, 1, 0]], dtype=np.uint8), # Original kernel_4
-        np.array([[1, 0, 0], [1, 1, 1], [0, 1, 0]], dtype=np.uint8), # Original kernel_5
-        np.array([[0, 1, 0], [1, 1, 0], [0, 0, 1]], dtype=np.uint8), # Original kernel_7
-        np.array([[1, 1, 1], [0, 1, 0], [0, 0, 1]], dtype=np.uint8), # Original kernel_8
-        np.array([[1, 1, 1], [0, 1, 0], [1, 0, 0]], dtype=np.uint8), # Original kernel_9 (This was the missing one)
-        np.array([[1, 0, 1], [0, 1, 0], [1, 0, 0]], dtype=np.uint8)  # Original kernel_10
+        np.array(
+            [[1, 0, 1], [0, 1, 0], [0, 1, 0]], dtype=np.uint8
+        ),  # Original kernel_6
+        np.array(
+            [[1, 1, 1], [0, 1, 0], [0, 1, 0]], dtype=np.uint8
+        ),  # Original kernel_3
+        np.array(
+            [[0, 0, 1], [1, 1, 1], [0, 1, 0]], dtype=np.uint8
+        ),  # Original kernel_4
+        np.array(
+            [[1, 0, 0], [1, 1, 1], [0, 1, 0]], dtype=np.uint8
+        ),  # Original kernel_5
+        np.array(
+            [[0, 1, 0], [1, 1, 0], [0, 0, 1]], dtype=np.uint8
+        ),  # Original kernel_7
+        np.array(
+            [[1, 1, 1], [0, 1, 0], [0, 0, 1]], dtype=np.uint8
+        ),  # Original kernel_8
+        np.array(
+            [[1, 1, 1], [0, 1, 0], [1, 0, 0]], dtype=np.uint8
+        ),  # Original kernel_9 (This was the missing one)
+        np.array(
+            [[1, 0, 1], [0, 1, 0], [1, 0, 0]], dtype=np.uint8
+        ),  # Original kernel_10
     ]
-    
+
     all_kernels = [k_x, k_x_diag]
     for kernel in kernels_to_rotate:
         for k in range(4):
@@ -106,8 +125,10 @@ def find_intersections_via_hit_or_miss(skeleton, show=False):
     if show:
         display_image = cv2.cvtColor(skeleton * 255, cv2.COLOR_GRAY2BGR)
         for coord in cleaned_coords:
-            cv2.circle(display_image, coord[::-1], radius=5, color=(0, 0, 255), thickness=-1)
-        cv2.imshow('Detected Intersections', display_image)
+            cv2.circle(
+                display_image, coord[::-1], radius=5, color=(0, 0, 255), thickness=-1
+            )
+        cv2.imshow("Detected Intersections", display_image)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
@@ -117,10 +138,18 @@ def find_intersections_via_hit_or_miss(skeleton, show=False):
 # Main execution block
 if __name__ == "__main__":
     # Set up argument parser to make the script a command-line tool
-    parser = argparse.ArgumentParser(description="Find and display intersections in a skeletonized image.")
-    parser.add_argument("image_path", type=str, help="Path to the input skeletonized image.")
-    parser.add_argument("--show", action="store_true", help="Display the image with detected intersections.")
-    
+    parser = argparse.ArgumentParser(
+        description="Find and display intersections in a skeletonized image."
+    )
+    parser.add_argument(
+        "image_path", type=str, help="Path to the input skeletonized image."
+    )
+    parser.add_argument(
+        "--show",
+        action="store_true",
+        help="Display the image with detected intersections.",
+    )
+
     args = parser.parse_args()
 
     # Load the image in grayscale
@@ -138,13 +167,15 @@ if __name__ == "__main__":
 
     # Delete the pixel wide border of the image
     h, w = skeleton_binary.shape
-    skeleton_binary[0, :] = 0      # Top edge
-    skeleton_binary[h-1, :] = 0    # Bottom edge
-    skeleton_binary[:, 0] = 0      # Left edge
-    skeleton_binary[:, w-1] = 0    # Right edge
+    skeleton_binary[0, :] = 0  # Top edge
+    skeleton_binary[h - 1, :] = 0  # Bottom edge
+    skeleton_binary[:, 0] = 0  # Left edge
+    skeleton_binary[:, w - 1] = 0  # Right edge
 
     # Find and optionally display intersections
-    intersection_coords = find_intersections_via_hit_or_miss(skeleton_binary, show=args.show)
-    
+    intersection_coords = find_intersections_via_hit_or_miss(
+        skeleton_binary, show=args.show
+    )
+
     print(f"Found {len(intersection_coords)} intersection(s).")
     print("Intersection Coordinates (y, x):", intersection_coords)
