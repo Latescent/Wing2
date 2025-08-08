@@ -166,7 +166,7 @@ def path_trace(image: np.ndarray, verbose: bool = False) -> tuple[nx.Graph, list
                     G.add_edge(
                         start_node_id,
                         end_node_id,
-                        weight=dist(start_node_coord, nodes[end_node_id]),
+                        length=dist(start_node_coord, nodes[end_node_id]),
                     )
 
                 for pixel in path_pixels:
