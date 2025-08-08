@@ -18,12 +18,8 @@ The primary function for executing this pipeline is `process_bee_wing`.
 import cv2
 import numpy as np
 import os
-import sys
-import threading
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "")))
-
-from intersections import find_intersections_via_hit_or_miss
+from intersections import find_intersections
 from sklearn.decomposition import PCA
 
 
@@ -120,7 +116,7 @@ def preprocess_image(image: np.ndarray, preprocess_image_args: list, *debug_mode
         if size <= 1000:
             contour = np.array([[[x, y]], [[x + w, y]], [[x + w, y + h]], [[x, y + h]]])
             cv2.drawContours(mask, [contour], -1, 255, -1)
-    cleaned_binary = cv2.bitwise_and(closed_binary, ~mask)
+    cleaned_binary = cv2.bitwise_and(closed_binary, mask)
 
     show_debug_images(locals(), debug_mode)
 
@@ -325,7 +321,7 @@ def crop_image(skeletonized: np.ndarray, image_path: str, *debug_mode: str):
     elif "PL" in image_path and (600 < w_orig < 800):
         skeletonized = skeletonized[:, :-10]
 
-    intersection_coords = find_intersections_via_hit_or_miss(skeletonized)
+    intersection_coords = find_intersections(skeletonized)
     h, w = skeletonized.shape[:2]
     average = 0
     if "PL" in image_path:

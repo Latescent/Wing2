@@ -1,5 +1,4 @@
-"""A collection of tools that are required to help other scripts.
-"""
+"""A collection of tools that are required to help other scripts."""
 
 import csv
 import cv2
@@ -7,12 +6,13 @@ import numpy as np
 import os
 import sys
 
+
 def progress_bar(total: int, current: int, prefix: str = "", suffix: str = "") -> None:
     """Displays a text-based rogress bar.
 
     Creates a text based progress bar. The effects are achieved with terminal text manipulation.
 
-    Args: 
+    Args:
         total : The total number of tasks, representing 100% of the bar.
         current : The number of tasks that have been completed.
         prefix : An optional string to display at the beginning of the progress bar.
@@ -23,12 +23,12 @@ def progress_bar(total: int, current: int, prefix: str = "", suffix: str = "") -
     """
     bar_length = 50
     progress = float(current) / total
-    arrow = '=' * int(round(progress * bar_length) - 1) + '>'
-    spaces = ' ' * (bar_length - len(arrow))
-    
-    sys.stdout.write(f"\r{prefix} [{arrow}{spaces}] {int(progress*100)}% {suffix}")
+    arrow = "=" * int(round(progress * bar_length) - 1) + ">"
+    spaces = " " * (bar_length - len(arrow))
+
+    sys.stdout.write(f"\r{prefix} [{arrow}{spaces}] {int(progress * 100)}% {suffix}")
     sys.stdout.flush()
-    
+
     if current == total:
         sys.stdout.write("\n")
 
@@ -47,18 +47,18 @@ def read_csv(file_path) -> list[list[str]]:
     """
     data_list = []
     try:
-        with open(file_path, mode='r', newline='', encoding='utf-8') as csv_file:
+        with open(file_path, mode="r", newline="", encoding="utf-8") as csv_file:
             # Create a csv reader object
             csv_reader = csv.reader(csv_file)
-            
+
             # Convert the reader object to a list of lists
             data_list = list(csv_reader)
-            
+
     except FileNotFoundError:
         print(f"Error: The file '{file_path}' was not found.")
     except Exception as e:
         print(f"An error occurred: {e}")
-        
+
     return data_list
 
 
@@ -76,13 +76,15 @@ def noise_level_detection(image_dir: str):
         ValueError if image doesn't exist.
     """
     image = cv2.imread(image_dir, cv2.IMREAD_GRAYSCALE)
-    
+
     if image is None:
         raise ValueError
-    
+
     # Use adaptive thresholding for local binarization
-    thresh = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5)
-    
+    thresh = cv2.adaptiveThreshold(
+        image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5
+    )
+
     mean_value = np.mean(thresh)
 
     return (os.path.basename(image_dir), float(mean_value))
@@ -102,5 +104,24 @@ def string_to_tuple(input: str) -> tuple:
     result = [int(item) for item in params]
     return tuple(result)
 
+
 def tuple_to_string(input: tuple) -> str:
     return f"({input[0]},{input[1]})"
+
+
+def calculate_area(image):
+    """
+    This function reads a wing image, finds the largest area (the wing),
+    calculates its area, and creates an output image with the area colored.
+
+    Args:
+        image (np.ndarray): Path to the input image file.
+
+    Returns:
+        float: The calculated area in square pixels.
+    """
+    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    wing_contour = max(contours, key=cv2.contourArea)
+    area = cv2.contourArea(wing_contour)
+
+    return area

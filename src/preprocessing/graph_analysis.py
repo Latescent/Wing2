@@ -1,9 +1,15 @@
 import cv2
-from graph_gen import path_trace
 import networkx as nx
 import numpy as np
-from scipy import stats
+import os
+import sys
 import warnings
+from graph_gen import path_trace
+from scipy import stats
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from utils.helpers import calculate_area
 
 
 def _calculate_moments(data_list):
@@ -252,7 +258,7 @@ if __name__ == "__main__":
     G_sample, _, _ = path_trace(skeleton_image)
 
     # Define a mock wing area
-    mock_wing_area = 15000.0  # pixels^2
+    mock_wing_area = calculate_area(skeleton_image)
 
     print(
         f"Sample graph created with {G_sample.number_of_nodes()} nodes and {G_sample.number_of_edges()} edges."
@@ -269,3 +275,4 @@ if __name__ == "__main__":
             print(f"{i + 1:2d}. {key:<35}: {value:.4f}")
     else:
         print("Feature calculation failed.")
+
