@@ -3,7 +3,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from collections import deque
 from math import sqrt
-from intersections import find_intersections_via_hit_or_miss
+from intersections import find_intersections
 
 
 def find_neighbours(image, coordinates, traversed):
@@ -33,51 +33,71 @@ def dist(coord1, coord2):
     return sqrt((coord1[0] - coord2[0]) ** 2 + (coord1[1] - coord2[1]) ** 2)
 
 
-def is_close_to_edge(coord, edges):
-    for item in edges:
-        if dist(coord, item) < 5:
-            return item
-    return 0
+def trace_one_path_bfs(start_pixel, source, image, nodes_list, proximity_threshold=5):
+    """
+    Performs a self-contained BFS to trace a single path from a starting
+    pixel until it hits any node in nodes_set.
+    """
+    q = deque([(start_pixel, [start_pixel])])  # Queue: (current_pixel, path_taken)
+    visited_in_this_path = {source, start_pixel}
+
+    while q:
+        current_pixel, path = q.popleft()
+
+        for neighbor in find_neighbours(image, current_pixel, visited_in_this_path):
+            for node_id, node_coord in enumerate(nodes_list):
+                if node_coord == source:
+                    continue
+                if dist(neighbor, node_coord) < proximity_threshold:
+                    # Found a junction! Return its ID and the path.
+                    return node_id, path + [neighbor]
+
+            visited_in_this_path.add(neighbor)
+            q.append((neighbor, path + [neighbor]))
+
+    return None, []  # Path did not lead to a junction
 
 
-def path_trace(image):
-    "Creates a graph based on the skeletonized wing image"
-    edges = find_intersections_via_hit_or_miss(image)
-    print(edges)
-    edges_set = set(edges)
+def path_trace_corrected(image):
+    """
+    Correctly builds the graph by tracing one full path at a time.
+    """
+    print("Finding intersections...")
+    nodes = find_intersections(image)
+    if not nodes:
+        print("No nodes found.")
+        return nx.Graph(), []
+
     G = nx.Graph()
-    # Add all the intersection points as edges
-    for edge in edges:
-        G.add_node(edges.index(edge))
+    # Node IDs are their index in the 'nodes' list
+    for i in range(len(nodes)):
+        G.add_node(i)
 
-    start_pixel = edges[0]
-    traversed = set()
-    Q = deque()
-    traversed.add(start_pixel)
-    Q.append((start_pixel, 0))
+    traversed_edge_pixels = set()
 
-    while Q:
-        pixel_coord, source_node_id = Q.popleft()
-        neighbours = find_neighbours(image, pixel_coord, traversed)
+    for start_node_id, start_node_coord in enumerate(nodes):
+        for neighbor in find_neighbours(image, start_node_coord, traversed_edge_pixels):
+            if neighbor in traversed_edge_pixels:
+                continue
 
-        for item in neighbours:
-            traversed.add(item)
+            end_node_id, path_pixels = trace_one_path_bfs(
+                neighbor, start_node_coord, image, nodes
+            )
 
-            if close_edge := is_close_to_edge(item, edges_set):
-                end_node_id = edges.index(close_edge)
-                if end_node_id != source_node_id:
+            if end_node_id is not None and path_pixels:
+                if start_node_id != end_node_id:
                     G.add_edge(
+                        start_node_id,
                         end_node_id,
-                        source_node_id,
-                        weight=dist(item, edges[source_node_id]),
+                        weight=dist(start_node_coord, nodes[end_node_id]),
                     )
-                Q.append((item, end_node_id))
-            else:
-                Q.append((item, source_node_id))
 
-    print(G.edges)
-    visualize_graph_on_image(G, image, edges)
-    return G
+                for pixel in path_pixels:
+                    traversed_edge_pixels.add(pixel)
+
+    print(G)
+    visualize_graph_on_image(G, image, nodes)
+    return G, nodes
 
 
 def visualize_graph_on_image(graph, image, node_coordinates):
@@ -137,7 +157,7 @@ def main():
         print(f"Error loading image: {e}")
         exit()
 
-    print(path_trace(skeleton_image))
+    path_trace_corrected(skeleton_image)
 
 
 main()

@@ -4,7 +4,7 @@ import argparse
 
 
 def cleanup_intersections(
-    coords: list[tuple[int, int]], distance_threshold: int = 8
+    coords: list[tuple[int, int]], distance_threshold: int = 5
 ) -> list[tuple[int, int]]:
     """
     Cleans up a list of coordinates by merging points that are close to each other.
@@ -55,7 +55,7 @@ def cleanup_intersections(
     return merged_coords
 
 
-def find_intersections_via_hit_or_miss(skeleton, show=False):
+def find_intersections(skeleton, show=False):
     """
     Detects intersection points in a skeletonized binary image using the
     morphological hit-or-miss transform.
@@ -121,10 +121,19 @@ def find_intersections_via_hit_or_miss(skeleton, show=False):
 
     raw_coords = [tuple(coord) for coord in np.argwhere(intersections > 0)]
     cleaned_coords = cleanup_intersections(raw_coords)
+    final_coords = []
+    height = len(skeleton) - 1
+    width = len(skeleton[0]) - 1
+    print(height, width)
+    for x, y in cleaned_coords:
+        print(x, y)
+        if x == 0 or y == 0 or x == height or y == width:
+            continue
+        final_coords.append((x, y))
 
     if show:
         display_image = cv2.cvtColor(skeleton * 255, cv2.COLOR_GRAY2BGR)
-        for coord in cleaned_coords:
+        for coord in final_coords:
             cv2.circle(
                 display_image, coord[::-1], radius=5, color=(0, 0, 255), thickness=-1
             )
@@ -132,7 +141,7 @@ def find_intersections_via_hit_or_miss(skeleton, show=False):
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-    return cleaned_coords
+    return final_coords
 
 
 # Main execution block
@@ -173,9 +182,7 @@ if __name__ == "__main__":
     skeleton_binary[:, w - 1] = 0  # Right edge
 
     # Find and optionally display intersections
-    intersection_coords = find_intersections_via_hit_or_miss(
-        skeleton_binary, show=args.show
-    )
+    intersection_coords = find_intersections(skeleton_binary, show=args.show)
 
     print(f"Found {len(intersection_coords)} intersection(s).")
     print("Intersection Coordinates (y, x):", intersection_coords)
