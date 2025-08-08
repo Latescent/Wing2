@@ -123,9 +123,7 @@ def find_intersections(skeleton, show=False):
     final_coords = []
     height = len(skeleton) - 1
     width = len(skeleton[0]) - 1
-    print(height, width)
     for x, y in cleaned_coords:
-        print(x, y)
         if x == 0 or y == 0 or x == height or y == width:
             continue
         final_coords.append((x, y))
