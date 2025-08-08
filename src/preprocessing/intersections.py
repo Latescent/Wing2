@@ -102,7 +102,7 @@ def find_intersections(skeleton, show=False):
         ),  # Original kernel_8
         np.array(
             [[1, 1, 1], [0, 1, 0], [1, 0, 0]], dtype=np.uint8
-        ),  # Original kernel_9 (This was the missing one)
+        ),  # Original kernel_9
         np.array(
             [[1, 0, 1], [0, 1, 0], [1, 0, 0]], dtype=np.uint8
         ),  # Original kernel_10
@@ -113,7 +113,6 @@ def find_intersections(skeleton, show=False):
         for k in range(4):
             all_kernels.append(np.rot90(kernel, k=k))
 
-    # The rest of the logic is as before...
     intersections = np.zeros_like(skeleton, dtype=np.uint8)
     for kernel in all_kernels:
         hit_or_miss = cv2.morphologyEx(skeleton, cv2.MORPH_HITMISS, kernel)

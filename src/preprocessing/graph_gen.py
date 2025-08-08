@@ -45,6 +45,8 @@ def trace_one_path_bfs(start_pixel, source, image, nodes_list, proximity_thresho
         current_pixel, path = q.popleft()
 
         for neighbor in find_neighbours(image, current_pixel, visited_in_this_path):
+            if dist(source, neighbor) < 2:
+                continue
             for node_id, node_coord in enumerate(nodes_list):
                 if node_coord == source:
                     continue
@@ -96,51 +98,49 @@ def path_trace_corrected(image):
                     traversed_edge_pixels.add(pixel)
 
     print(G)
-    visualize_graph_on_image(G, image, nodes)
+    visualize_graph_on_image(G, image, nodes, traversed_edge_pixels)
     return G, nodes
 
 
-def visualize_graph_on_image(graph, image, node_coordinates):
+def visualize_graph_on_image(graph, image, node_coordinates, traversed_pixels=None):
     """
-    Draws a networkx graph overlaid on a background image.
-
-    Args:
-        graph (nx.Graph): The graph object to draw.
-        image (np.ndarray): The background image (skeleton or original).
-        node_coordinates (list): A list of (row, col) tuples. The index of
-                                 each tuple must correspond to the node ID in the graph.
+    Draws a networkx graph overlaid on a background image, optionally
+    highlighting traversed pixels.
     """
     if not node_coordinates:
         print("Cannot visualize: No node coordinates provided.")
         return
-
     print("Generating visualization...")
 
-    # Create the position dictionary needed by networkx.
-    # The key is the node ID (0, 1, 2...), and the value is the (x, y) coordinate.
-    # Remember: image (row, col) corresponds to plot (y, x).
-    pos = {i: (coord[1], coord[0]) for i, coord in enumerate(node_coordinates)}
+    # Create a color version of the image to draw on
+    display_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
 
-    # Create a new plot
+    # If traversed pixels are provided, color them green
+    if traversed_pixels:
+        print(f"Highlighting {len(traversed_pixels)} traversed pixels in green...")
+        for r, c in traversed_pixels:
+            # Set the pixel at (row, col) to green (BGR format)
+            display_image[r, c] = (0, 255, 0)
+
+    pos = {i: (coord[1], coord[0]) for i, coord in enumerate(node_coordinates)}
     fig, ax = plt.subplots(figsize=(12, 12))
 
-    # Display the background image
-    ax.imshow(image, cmap="gray")
+    # Display the (potentially colored) image
+    ax.imshow(display_image)
 
     # Draw the graph over the image
     nx.draw(
         graph,
         pos,
         ax=ax,
-        with_labels=True,  # Show node IDs
-        node_size=250,  # Make nodes bigger and easier to see
-        node_color="cyan",  # A bright color for nodes
-        edge_color="magenta",  # A bright color for edges
-        width=2.5,  # Make lines thicker
-        font_size=10,  # Font size for node labels
-        font_color="black",  # A contrasting color for the labels
+        with_labels=True,
+        node_size=250,
+        node_color="cyan",
+        edge_color="magenta",
+        width=2.5,
+        font_size=10,
+        font_color="black",
     )
-
     ax.set_title("Generated Graph on Skeleton Image", fontsize=16)
     plt.show()
 
