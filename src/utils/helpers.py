@@ -7,6 +7,24 @@ import os
 import sys
 
 
+def calculate_area(image):
+    """
+    This function reads a wing image, finds the largest area (the wing),
+    calculates its area, and creates an output image with the area colored.
+
+    Args:
+        image (np.ndarray): Path to the input image file.
+
+    Returns:
+        float: The calculated area in square pixels.
+    """
+    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    wing_contour = max(contours, key=cv2.contourArea)
+    area = cv2.contourArea(wing_contour)
+
+    return area
+
+
 def progress_bar(total: int, current: int, prefix: str = "", suffix: str = "") -> None:
     """Displays a text-based rogress bar.
 
@@ -33,35 +51,6 @@ def progress_bar(total: int, current: int, prefix: str = "", suffix: str = "") -
         sys.stdout.write("\n")
 
 
-def read_csv(file_path) -> list[list[str]]:
-    """
-    Reads a CSV file and converts it into a list of lists.
-
-    Args:
-        file_path (str): The path to the CSV file.
-
-    Returns:
-        list: A list of lists, where each inner list contains the
-              parameters from a row in the CSV file. Returns an empty
-              list if the file is not found or an error occurs.
-    """
-    data_list = []
-    try:
-        with open(file_path, mode="r", newline="", encoding="utf-8") as csv_file:
-            # Create a csv reader object
-            csv_reader = csv.reader(csv_file)
-
-            # Convert the reader object to a list of lists
-            data_list = list(csv_reader)
-
-    except FileNotFoundError:
-        print(f"Error: The file '{file_path}' was not found.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-    return data_list
-
-
 def noise_level_detection(image_dir: str):
     """
     Takes the mean value of the pixel colors of a black and white image.
@@ -85,8 +74,7 @@ def noise_level_detection(image_dir: str):
         image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 5
     )
 
-    mean_value = np.mean(thresh)
-
+    mean_value = np.mean(thresh)  # type: ignore
     return (os.path.basename(image_dir), float(mean_value))
 
 
@@ -109,19 +97,90 @@ def tuple_to_string(input: tuple) -> str:
     return f"({input[0]},{input[1]})"
 
 
-def calculate_area(image):
+def load_csv(dir):
     """
-    This function reads a wing image, finds the largest area (the wing),
-    calculates its area, and creates an output image with the area colored.
+    Reads a CSV file and converts it into a list of lists.
 
     Args:
-        image (np.ndarray): Path to the input image file.
+        file_path (str): The path to the CSV file.
 
     Returns:
-        float: The calculated area in square pixels.
+        list: A list of lists, where each inner list contains the
+              parameters from a row in the CSV file. Returns an empty
+              list if the file is not found or an error occurs.
     """
-    contours, _ = cv2.findContours(image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    wing_contour = max(contours, key=cv2.contourArea)
-    area = cv2.contourArea(wing_contour)
 
-    return area
+    def format_str(S: str):
+        """Converts strings in the csv to the correct format"""
+        # Check to see if it is a tuple
+        S.strip()
+        if "(" and ")" in S:
+            # Remove the unnecessary punctuation and split the tuple
+            temp: list = S.replace("(", "").replace(")", "").replace(" ", "").split(",")
+
+            # Try to convert the strings to floating values if possible
+            for index in range(len(temp)):
+                try:
+                    if temp[index].isdigit():
+                        temp[index] = int(temp[index])
+                    else:
+                        temp[index] = float(temp[index])
+                except Exception:
+                    pass
+
+            # Convert temp into a tuple and return it
+            return tuple(temp)
+
+        elif S.isdigit():
+            return int(S)
+
+        elif S.replace(".", "").isdigit():
+            return float(S)
+
+        else:
+            return S
+
+    def row_reader(row: list):
+        """Parses each line from the csv file into a dictionary with the following format
+        { Folder_name : { Noise_level : [arg_list] } }
+        """
+        # Create a base dict
+        data = dict()
+
+        # Create and store: folder name, noise level
+        folder_name = format_str(row[0])
+        noise_lvl = format_str(row[1])
+
+        # Add the structure
+        data[folder_name] = dict()
+
+        # Create the value list
+        value_list = list()
+        for index in range(2, len(row)):
+            value_list.append(format_str(row[index]))
+
+        # Add the value list to the data
+        data[folder_name][noise_lvl] = value_list
+
+        return data
+
+    try:
+        with open(dir, "r") as csv_file:
+            # Read the csv file
+            csv_reader = csv.reader(csv_file)
+
+            # Create the data dict\
+            data = dict()
+
+            # Iterate the csv file
+            for row in csv_reader:
+                data |= row_reader(row)
+
+            print("Loading CSV: Completed")
+
+            # Return the data
+            return data
+
+    except Exception as E:
+        print(f"Error in loading the csv: {E}")
+        exit(1)
