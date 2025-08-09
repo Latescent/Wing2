@@ -135,6 +135,6 @@ if __name__ == "__main__":
     home_directory = Path(__file__).parent.parent
     source_dir = f"{home_directory}/data/raw_images"
     csv_dir = f"{home_directory}/configs/filter_params.csv"
-    output_dir = f"{home_directory}/data/processed_images"
+    skeletonized_dir = f"{home_directory}/data/skeletonized_images"
 
-    filter_all_images(source_dir, csv_dir, output_dir)
+    filter_all_images(source_dir, csv_dir, skeletonized_dir)

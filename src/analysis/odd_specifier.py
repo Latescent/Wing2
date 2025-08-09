@@ -14,36 +14,20 @@ import yaml
 
 import cv2
 import numpy as np
-from scipy.spatial import distance
 from skimage import filters
 from sklearn.ensemble import IsolationForest
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from preprocessing.data_utils import get_image_paths
+from preprocessing.graph_gen import path_trace
+from preprocessing.graph_analysis import calculate_wing_features
+from utils.helpers import calculate_area
 
 
 counter = 0
 
 
-def progress_bar(len: int, counter: int, txt: str = "Loading:"):
-    """
-    Displays a simple text-based progress bar in the console.
-
-    Args:
-        length (int): The total number of items for 100%.
-        count (int): The current number of completed items.
-        txt (str, optional): The text to display before the bar.
-            Defaults to "Loading:".
-    """
-    percentage = int(counter * 100 / len)
-    print(
-        f"{txt} |{'=' * percentage}{'-' * (100 - percentage)}| {percentage}%", end="\r"
-    )
-    if counter == len:
-        sys.stdout.write(f"\r{txt} 100%\033[K\n")
-
-
-def get_contour_noise_score(image: np.ndarray, area_threshold: int) -> int:
+def get_contour_noise_score(image, area_threshold: int) -> int:
     """Calculates a noise score based on the number of small contours.
 
     This method is useful for detecting noise such as small, disconnected
@@ -63,11 +47,13 @@ def get_contour_noise_score(image: np.ndarray, area_threshold: int) -> int:
         binary_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )
 
-    noise_score = sum(1 for contour in contours if cv2.contourArea(contour) < area_threshold)
+    noise_score = sum(
+        1 for contour in contours if cv2.contourArea(contour) < area_threshold
+    )
     return noise_score
 
 
-def get_edge_noise_score(image: np.ndarray) -> float:
+def get_edge_noise_score(image) -> float:
     """Calculates a noise score based on the standard deviation of edge intensity.
 
     This method uses a Sobel filter to detect edges. A higher standard deviation
@@ -94,16 +80,29 @@ def extract_features(image_path: str, contour_threshold: int) -> tuple[int, floa
 
     Returns:
         tuple[int, float]: A tuple containing the contour noise score and the
-        edge noise score.
+        edge noise score along with the graph theory values.
     """
-    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    try:
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        if image is None:
+            raise FileNotFoundError(f"Image not found at path: {image_path}")
+    except Exception as e:
+        print(f"Error loading image: {e}")
+        exit()
+
     noise_score_contours = get_contour_noise_score(image, contour_threshold)
     noise_score_edge = get_edge_noise_score(image)
-    return (noise_score_contours, noise_score_edge)
+
+    image_graph, _, _ = path_trace(image)
+    wing_area = calculate_area(image)
+    graph_feature_vector = calculate_wing_features(image_graph, wing_area).values()
+
+    return (noise_score_contours, noise_score_edge, *graph_feature_vector)
 
 
-def run_anomaly_detection(image_paths: list[str], contamination: float,
-                          contour_threshold: int) -> tuple[list[str], np.ndarray]:
+def run_anomaly_detection(
+    image_paths: list[str], contamination: float, contour_threshold: int
+) -> tuple[list[str], np.ndarray]:
     """Trains an Isolation Forest model and predicts anomalies.
 
     This function orchestrates the loading of images, parallel feature
@@ -121,15 +120,17 @@ def run_anomaly_detection(image_paths: list[str], contamination: float,
     """
     print("Extracting features in parallel...")
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        features = list(executor.map(lambda p: extract_features(p, contour_threshold), image_paths))
+        features = list(
+            executor.map(lambda p: extract_features(p, contour_threshold), image_paths)
+        )
     print("Feature extraction complete.")
 
     print("Training Isolation Forest model...")
     features_array = np.array(features)
     iso_forest = IsolationForest(
-        contamination=contamination, #type: ignore
+        contamination=contamination,  # type: ignore
         random_state=42,
-        n_jobs=-1
+        n_jobs=-1,
     )
     predictions = iso_forest.fit_predict(features_array)  # fit the Isolation Forest
     print("Model training complete.")
@@ -137,7 +138,9 @@ def run_anomaly_detection(image_paths: list[str], contamination: float,
     return image_paths, predictions
 
 
-def classify_images_by_anomaly(output_base_dir: str, image_paths: list[str], predictions: np.ndarray):
+def classify_images_by_anomaly(
+    output_base_dir: str, image_paths: list[str], predictions: np.ndarray
+):
     """Classifies images into 'clean' and 'noisy' folders using the model.
 
     Args:
@@ -167,7 +170,9 @@ def classify_images_by_anomaly(output_base_dir: str, image_paths: list[str], pre
 # --- Main Execution Block ---
 if __name__ == "__main__":
     # --- Load Configuration ---
-    config_path = os.path.join(os.path.dirname(__file__), '../../configs/', 'config.yaml')
+    config_path = os.path.join(
+        os.path.dirname(__file__), "../../configs/", "config.yaml"
+    )
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 
@@ -184,14 +189,8 @@ if __name__ == "__main__":
 
     # Pass parameters down to the function
     image_paths_processed, predictions = run_anomaly_detection(
-        all_image_paths, 
-        contamination, 
-        contour_threshold
+        all_image_paths, contamination, contour_threshold
     )
 
     # Pass output folder and results to the saving function
-    classify_images_by_anomaly(
-        output_folder, 
-        image_paths_processed, 
-        predictions
-    )
+    classify_images_by_anomaly(output_folder, image_paths_processed, predictions)

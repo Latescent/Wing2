@@ -43,7 +43,7 @@ def calculate_wing_features(G, wing_area):
     """
     if not G or G.number_of_nodes() == 0:
         warnings.warn("Input graph is empty. Cannot calculate features.")
-        return None
+        return {}
 
     features = {}
 
@@ -275,4 +275,3 @@ if __name__ == "__main__":
             print(f"{i + 1:2d}. {key:<35}: {value:.4f}")
     else:
         print("Feature calculation failed.")
-
